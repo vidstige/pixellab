@@ -17,6 +17,7 @@ eframe = { version = "0.31", default-features = false, features = [
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "wayland",       # To support Linux (and CI)
 ] }
+winit = "0.30.9"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
