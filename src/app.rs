@@ -1,15 +1,13 @@
+use crate::nodes::node::{Node, Nodes};
+
 pub struct PixelLab {
-    // Example stuff:
-    label: String,
-    value: f32,
+    nodes: Nodes,
 }
 
 impl Default for PixelLab {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            nodes: Nodes::new(),
         }
     }
 }
@@ -26,7 +24,9 @@ impl PixelLab {
         //    return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         //}
 
-        Default::default()
+        let mut app: PixelLab = Default::default();
+        app.nodes.nodes.push(Node::new());
+        app
     }
 }
 
@@ -61,18 +61,9 @@ impl eframe::App for PixelLab {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            ui.heading("Pixel Labs");
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
-
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
+            self.nodes.show(ui);
 
             ui.separator();
 
