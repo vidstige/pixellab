@@ -18,9 +18,9 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "PixelLab",
         native_options,
-        Box::new(|cc| Ok(Box::new(pixellab::TemplateApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(pixellab::PixelLab::new(cc)))),
     )
 }
 
