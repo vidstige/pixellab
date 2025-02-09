@@ -1,3 +1,5 @@
+use egui::Vec2;
+
 use crate::nodes::node::{Node, Nodes};
 
 pub struct PixelLab {
@@ -25,6 +27,9 @@ impl PixelLab {
         //}
 
         let mut app: PixelLab = Default::default();
+        let mut node1 = Node::new();
+        node1.rect = node1.rect.translate(Vec2::new(120.0, 10.0));
+        app.nodes.nodes.push(node1);
         app.nodes.nodes.push(Node::new());
         app
     }

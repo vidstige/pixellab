@@ -1,8 +1,9 @@
 use egui::{response, Color32, Pos2, Rect, Response, Sense, Vec2, Widget};
+use env_logger::fmt::style::Color;
 
 #[derive(Debug)]
 pub struct Node {
-    rect: Rect,
+    pub rect: Rect,
 }
 impl Node {
     pub(crate) fn new() -> Self {
@@ -26,9 +27,9 @@ impl Nodes {
         
         let painter = ui.painter();
         //painter.debug_rect(rect, Color32::KHAKI, "rect");
-        for node in &mut self.nodes {
-            painter.rect_filled(node.rect, 4.0, Color32::DARK_GREEN);
-            let response = ui.interact(node.rect, ui.id(), sense);
+        for (index, node) in self.nodes.iter_mut().enumerate() {
+            painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
+            let response = ui.interact(node.rect, ui.id().with(index), sense);
             if response.dragged() {
                 node.rect = node.rect.translate(response.drag_delta());
             }
