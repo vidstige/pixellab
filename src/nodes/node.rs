@@ -99,8 +99,6 @@ impl Nodes {
         }
 
         for (node_index, node) in self.nodes.iter().enumerate() {
-            
-            
             // draw rect
             painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
             
@@ -161,6 +159,18 @@ impl Nodes {
                     }
                 }
                 if response.drag_stopped() {
+                    if let Some(pointer_pos) = pointer {
+                        // check if dropped into any of the input nodes
+                        for (node_index, node) in self.nodes.iter().enumerate() {
+                            for (pin_index, pin) in node.inputs.iter().enumerate() {
+                                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
+                                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
+                                if pin_rect.contains(pointer_pos) {
+                                    self.links.push((self.link_from.unwrap(), PinId { node_index, pin_index, direction: PinDirection::Input}));
+                                }
+                            }
+                        }
+                    }
                     self.link_from = None;
                 }
             }
