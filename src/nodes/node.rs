@@ -1,4 +1,4 @@
-use egui::{Color32, Id, PointerState, Pos2, Rect, Sense, Stroke, Vec2};
+use egui::{Color32, Id, Pos2, Rect, Sense, Stroke, Vec2};
 
 #[derive(Clone, Copy, Hash)]
 enum PinDirection {
@@ -65,7 +65,7 @@ fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 
 
 pub struct Nodes {
     pub nodes: Vec<Node>,
-    pub links: Vec<(usize, usize)>,
+    pub links: Vec<(PinId, PinId)>,
     link_from: Option<PinId>, // holds link currently being connected, if any 
 }
 
@@ -83,9 +83,23 @@ impl Nodes {
         });
 
         let painter = ui.painter();
+        
+        // draw links
+        for (from, to) in &self.links {
+            let from_node = &self.nodes[from.node_index];
+            let from_center = pin_position(&from_node.rect, from.pin_index, from.direction);
+            
+            let to_node = &self.nodes[to.node_index];
+            let to_center = pin_position(&to_node.rect, to.pin_index, to.direction);
+            
+            let mut lines = Vec::new();
+            lines.push(from_center);
+            lines.push(to_center);
+            painter.line(lines, Stroke::new(2.0, Color32::WHITE));
+        }
 
         for (node_index, node) in self.nodes.iter().enumerate() {
-            // draw links
+            
             
             // draw rect
             painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
@@ -113,12 +127,12 @@ impl Nodes {
                 if response.drag_stopped() {
                     if let Some(pointer_pos) = pointer {
                         // check if dropped into any of the output nodes
-                        for node in &self.nodes {
+                        for (node_index, node) in self.nodes.iter().enumerate() {
                             for (pin_index, pin) in node.outputs.iter().enumerate() {
                                 let center = pin_position(&node.rect, pin_index, PinDirection::Output);
                                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                                 if pin_rect.contains(pointer_pos) {
-                                    println!("hi ho");
+                                    self.links.push((PinId { node_index, pin_index, direction: PinDirection::Output}, self.link_from.unwrap()));
                                 }
                             }
                         }
