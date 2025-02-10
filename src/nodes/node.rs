@@ -69,18 +69,6 @@ impl Nodes {
         });
         
         let painter = ui.painter();
-        // draw currently connecting link, if any
-        /*if let Some(from_id) = &self.link_from {
-            if response.contains_pointer() {
-                println!("linking {}", response.drag_motion());
-                let rect = self.nodes[from_id.node_index].rect;
-                let center = pin_position(&rect, from_id.pin_index, from_id.direction);
-                let mut lines = Vec::new();
-                lines.push(center);
-                lines.push(center + response.drag_motion());
-                painter.line(lines, Stroke::new(2.0, Color32::WHITE));
-            }
-        }*/
 
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
             // draw links
@@ -117,6 +105,24 @@ impl Nodes {
                 let center = pin_position(&node.rect, pin_index, PinDirection::Output);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
+                
+                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
+                let id = ui.id().with(node_index).with(pin_index);
+                let response = ui.interact(pin_rect, id, Sense::drag());
+                if response.drag_started() {
+                    self.link_from = Some(PinId { node_index, pin_index, direction: PinDirection::Output});
+                }
+                if response.dragged() {
+                    if let Some(pointer) = pointer {
+                        let mut lines = Vec::new();
+                        lines.push(center);
+                        lines.push(pointer);
+                        painter.line(lines, Stroke::new(2.0, Color32::WHITE));
+                    }
+                }
+                if response.drag_stopped() {
+                    self.link_from = None;
+                }
             }
 
             let response = ui.interact(node.rect, ui.id().with(node_index), sense);
