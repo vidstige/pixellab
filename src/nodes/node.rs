@@ -1,6 +1,6 @@
 use egui::{Color32, Id, PointerState, Pos2, Rect, Sense, Stroke, Vec2};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash)]
 enum PinDirection {
     Input,
     Output,
@@ -11,6 +11,11 @@ struct PinId {
     node_index: usize,
     pin_index: usize,
     direction: PinDirection,
+}
+impl PinId {
+    fn id(&self, ui: &egui::Ui) -> Id {
+        ui.id().with(self.node_index).with(self.pin_index).with(self.direction)
+    }
 }
 
 #[derive(Debug)]
@@ -67,7 +72,7 @@ impl Nodes {
         ui.input(|input| {
             pointer = input.pointer.latest_pos();
         });
-        
+
         let painter = ui.painter();
 
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
@@ -83,10 +88,10 @@ impl Nodes {
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
-                let id = ui.id().with(node_index).with(pin_index);
-                let response = ui.interact(pin_rect, id, Sense::drag());
+                let pin_id = PinId { node_index, pin_index, direction: PinDirection::Input};
+                let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
                 if response.drag_started() {
-                    self.link_from = Some(PinId { node_index, pin_index, direction: PinDirection::Input});
+                    self.link_from = Some(pin_id);
                 }
                 if response.dragged() {
                     if let Some(pointer) = pointer {
@@ -107,10 +112,10 @@ impl Nodes {
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
-                let id = ui.id().with(node_index).with(pin_index);
-                let response = ui.interact(pin_rect, id, Sense::drag());
+                let pin_id = PinId { node_index, pin_index, direction: PinDirection::Output};
+                let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
                 if response.drag_started() {
-                    self.link_from = Some(PinId { node_index, pin_index, direction: PinDirection::Output});
+                    self.link_from = Some(pin_id);
                 }
                 if response.dragged() {
                     if let Some(pointer) = pointer {
