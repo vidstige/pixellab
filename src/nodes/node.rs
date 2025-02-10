@@ -6,6 +6,15 @@ enum PinDirection {
     Output,
 }
 
+impl PinDirection {
+    fn opposite(&self) -> &PinDirection {
+        match self {
+            PinDirection::Input => &PinDirection::Output,
+            PinDirection::Output => &PinDirection::Input,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct PinId {
     node_index: usize,
@@ -75,14 +84,14 @@ impl Nodes {
 
         let painter = ui.painter();
 
-        for (node_index, node) in self.nodes.iter_mut().enumerate() {
+        for (node_index, node) in self.nodes.iter().enumerate() {
             // draw links
             
             // draw rect
             painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
             
             // draw input pins
-            for (pin_index, pin) in node.inputs.iter_mut().enumerate() {
+            for (pin_index, pin) in node.inputs.iter().enumerate() {
                 let center = pin_position(&node.rect, pin_index, PinDirection::Input);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
@@ -102,11 +111,23 @@ impl Nodes {
                     }
                 }
                 if response.drag_stopped() {
+                    if let Some(pointer_pos) = pointer {
+                        // check if dropped into any of the output nodes
+                        for node in &self.nodes {
+                            for (pin_index, pin) in node.outputs.iter().enumerate() {
+                                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
+                                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
+                                if pin_rect.contains(pointer_pos) {
+                                    println!("hi ho");
+                                }
+                            }
+                        }
+                    }
                     self.link_from = None;
                 }
             }
             // draw output pins
-            for (pin_index, pin) in node.outputs.iter_mut().enumerate() {
+            for (pin_index, pin) in node.outputs.iter().enumerate() {
                 let center = pin_position(&node.rect, pin_index, PinDirection::Output);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
@@ -129,7 +150,8 @@ impl Nodes {
                     self.link_from = None;
                 }
             }
-
+        }
+        for (node_index, node) in self.nodes.iter_mut().enumerate() {
             let response = ui.interact(node.rect, ui.id().with(node_index), sense);
             if response.dragged() {
                 node.rect = node.rect.translate(response.drag_delta());
