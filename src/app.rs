@@ -2,8 +2,13 @@ use egui::Vec2;
 
 use crate::nodes::node::{Node, Nodes, Pin};
 
+enum NodeValue {
+    Float(f32),
+    String(String),
+}
+
 pub struct PixelLab {
-    nodes: Nodes,
+    nodes: Nodes<NodeValue>,
 }
 
 impl Default for PixelLab {
@@ -27,17 +32,24 @@ impl PixelLab {
         //}
 
         let mut app: PixelLab = Default::default();
-        let mut node1 = Node::new();
+        let mut node1 = Node::new(NodeValue::Float(1.1));
         node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
-        let mut node2 = Node::new();
-        node2.rect = node2.rect.translate(Vec2::new(120.0, 10.0));
-        node2.inputs.push(Pin::new());
-        app.nodes.nodes.push(node2);
+        let mut target = Node::new(NodeValue::Float(2.2));
+        target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
+        target.inputs.push(Pin::new());
+        app.nodes.nodes.push(target);
 
         app
     }
+}
+
+// runs the pipeline
+fn run(nodes: &Nodes<NodeValue>, t: f32) {
+    // Feed in time in time nodes
+    // Propagate forward
+    // Return target pixmap
 }
 
 impl eframe::App for PixelLab {
@@ -50,10 +62,8 @@ impl eframe::App for PixelLab {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
-
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             // The top panel is often a good place for a menu bar:
-
             egui::menu::bar(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
@@ -76,7 +86,6 @@ impl eframe::App for PixelLab {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
-
             self.nodes.show(ui);
         });
     }

@@ -38,15 +38,17 @@ impl Pin {
 }
 
 #[derive(Debug)]
-pub struct Node {
+pub struct Node<T> {
+    pub value: T,
     pub inputs: Vec<Pin>,
     pub outputs: Vec<Pin>,
     pub rect: Rect,
 }
 
-impl Node {
-    pub(crate) fn new() -> Self {
+impl<T> Node<T> {
+    pub(crate) fn new(value: T) -> Self {
         Self {
+            value,
             inputs: Vec::new(),
             outputs: Vec::new(),
             rect: Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(100.0, 100.0)),
@@ -63,13 +65,13 @@ fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 
     Pos2::new(x, y)
 }
 
-pub struct Nodes {
-    pub nodes: Vec<Node>,
+pub struct Nodes<T> {
+    pub nodes: Vec<Node<T>>,
     pub links: Vec<(PinId, PinId)>,
     link_from: Option<PinId>, // holds link currently being connected, if any 
 }
 
-impl Nodes {
+impl<T> Nodes<T> {
     pub fn new() -> Self {
         Self { nodes: Vec::new(), links: Vec::new(), link_from: None, }
     }
