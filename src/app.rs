@@ -1,7 +1,7 @@
 use egui::Vec2;
 use tiny_skia::Pixmap;
 
-use crate::nodes::node::{Node, Nodes, Pin};
+use crate::nodes::node::{NodeWidget, Nodes, Pin};
 
 enum PinValue {
     Float(f32),
@@ -34,12 +34,12 @@ impl PixelLab {
         //}
         let mut app: PixelLab = Default::default();
 
-        let mut target = Node::new(PinValue::Float(2.2));
+        let mut target = NodeWidget::new(PinValue::Float(2.2));
         target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
         target.inputs.push(Pin::new());
         app.nodes.nodes.push(target);
 
-        let mut node1 = Node::new(PinValue::Float(1.1));
+        let mut node1 = NodeWidget::new(PinValue::Float(1.1));
         node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
