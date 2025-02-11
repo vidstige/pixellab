@@ -69,17 +69,15 @@ impl eframe::App for PixelLab {
                 egui::widgets::global_theme_preference_buttons(ui);
             });
         });
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.label("Timeline");
+            egui::warn_if_debug_build(ui);
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
 
             self.nodes.show(ui);
-
-            ui.separator();
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                egui::warn_if_debug_build(ui);
-            });
         });
     }
 }
