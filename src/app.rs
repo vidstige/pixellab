@@ -2,13 +2,13 @@ use egui::Vec2;
 
 use crate::nodes::node::{Node, Nodes, Pin};
 
-enum NodeValue {
+enum PinValue {
     Float(f32),
     String(String),
 }
 
 pub struct PixelLab {
-    nodes: Nodes<NodeValue>,
+    nodes: Nodes<PinValue>,
 }
 
 impl Default for PixelLab {
@@ -32,11 +32,11 @@ impl PixelLab {
         //}
 
         let mut app: PixelLab = Default::default();
-        let mut node1 = Node::new(NodeValue::Float(1.1));
+        let mut node1 = Node::new(PinValue::Float(1.1));
         node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
-        let mut target = Node::new(NodeValue::Float(2.2));
+        let mut target = Node::new(PinValue::Float(2.2));
         target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
         target.inputs.push(Pin::new());
         app.nodes.nodes.push(target);
@@ -46,10 +46,10 @@ impl PixelLab {
 }
 
 // runs the pipeline
-fn run(nodes: &Nodes<NodeValue>, t: f32) {
-    // Feed in time in time nodes
-    // Propagate forward
-    // Return target pixmap
+fn resolve(nodes: &Nodes<PinValue>) {
+    // target node is always first
+    let target_index: usize = 0;
+
 }
 
 impl eframe::App for PixelLab {
