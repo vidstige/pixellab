@@ -1695,6 +1695,7 @@ dependencies = [
  "eframe",
  "egui",
  "env_logger",
+ "tiny-skia",
  "wasm-bindgen-futures",
  "web-sys",
  "winit",
@@ -2137,6 +2138,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "log",
+ "png",
  "tiny-skia-path",
 ]
 
