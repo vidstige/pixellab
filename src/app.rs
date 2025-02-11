@@ -1,10 +1,12 @@
 use egui::Vec2;
+use tiny_skia::Pixmap;
 
 use crate::nodes::node::{Node, Nodes, Pin};
 
 enum PinValue {
     Float(f32),
     String(String),
+    Pixmap(Pixmap),
 }
 
 pub struct PixelLab {
@@ -30,26 +32,26 @@ impl PixelLab {
         //if let Some(storage) = cc.storage {
         //    return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         //}
-
         let mut app: PixelLab = Default::default();
-        let mut node1 = Node::new(PinValue::Float(1.1));
-        node1.outputs.push(Pin::new());
-        app.nodes.nodes.push(node1);
 
         let mut target = Node::new(PinValue::Float(2.2));
         target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
         target.inputs.push(Pin::new());
         app.nodes.nodes.push(target);
 
+        let mut node1 = Node::new(PinValue::Float(1.1));
+        node1.outputs.push(Pin::new());
+        app.nodes.nodes.push(node1);
+
         app
     }
 }
 
 // runs the pipeline
-fn resolve(nodes: &Nodes<PinValue>) {
-    // target node is always first
-    let target_index: usize = 0;
-
+fn resolve(nodes: &Nodes<PinValue>, node_index: usize, pin_index: usize) -> PinValue{
+    // 1. collect all input pins
+    // 2. call this nodes callable
+    PinValue::Float(9.9)
 }
 
 impl eframe::App for PixelLab {
