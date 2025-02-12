@@ -16,12 +16,12 @@ enum NodeType {
 }
 
 impl NodeWidget for NodeType {
-    /*fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+    fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
-            NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
+            //NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
             _ => ui.response(),
         }
-    }*/
+    }
 }
 
 pub struct PixelLab {
@@ -69,6 +69,11 @@ impl PixelLab {
     PinValue::Float(9.9)
 }*/
 
+struct Foobar {
+    frame: egui::Frame,
+    area: egui::Area,
+}
+
 impl eframe::App for PixelLab {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -102,8 +107,18 @@ impl eframe::App for PixelLab {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Pixel Labs");
-            self.nodes.show(ui);
+            //ui.heading("Pixel Labs");
+            //self.nodes.show(ui);
+            let foobar = Foobar {
+                frame: egui::Frame::window(ui.style()),
+                area: egui::Area::new(egui::Id::new("hej")).movable(true),
+            };
+            foobar.area.show(ctx, |ui| {
+                foobar.frame.show(ui, |ui| {
+                    ui.label("hej");
+                });
+            });
+            
         });
     }
 }

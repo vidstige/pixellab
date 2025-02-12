@@ -1,4 +1,4 @@
-use egui::{Color32, Id, Pos2, Rect, Sense, Stroke, Vec2, Widget};
+use egui::{Color32, Id, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
 
 #[derive(Clone, Copy, Hash)]
 enum PinDirection {
@@ -38,7 +38,7 @@ impl Pin {
 }
 
 pub trait NodeWidget {
-
+    fn ui(&mut self, ui: &mut egui::Ui) -> Response;
 }
 
 #[derive(Debug)]
@@ -105,14 +105,17 @@ impl<W: NodeWidget> Nodes<W> {
             painter.line(lines, Stroke::new(2.0, Color32::WHITE));
         }
 
-        for (node_index, node) in self.nodes.iter().enumerate() {
+        for (node_index, node) in self.nodes.iter_mut().enumerate() {
             // draw rect
-            let painter = ui.painter();
-            painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
+            //let painter = ui.painter();
+            //painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
             
-            //let frame_ui = ui.put(node.rect, node.widget.clone());
-            //let mut node_frame = ui.
-
+            let mut frame = egui::Frame::group(ui.style());
+            ui.push_id(node_index, |ui| {
+                ui.put(node.rect, &mut frame);
+            });
+            frame.show(ui, |ui| node.widget.ui(ui));
+            
             // draw input pins
             let painter = ui.painter();
             for (pin_index, pin) in node.inputs.iter().enumerate() {
@@ -137,7 +140,7 @@ impl<W: NodeWidget> Nodes<W> {
                 if response.drag_stopped() {
                     if let Some(pointer_pos) = pointer {
                         // check if dropped into any of the output nodes
-                        for (node_index, node) in self.nodes.iter().enumerate() {
+                        /*for (node_index, node) in self.nodes.iter().enumerate() {
                             for (pin_index, pin) in node.outputs.iter().enumerate() {
                                 let center = pin_position(&node.rect, pin_index, PinDirection::Output);
                                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
@@ -145,7 +148,7 @@ impl<W: NodeWidget> Nodes<W> {
                                     self.links.push((PinId { node_index, pin_index, direction: PinDirection::Output}, self.link_from.unwrap()));
                                 }
                             }
-                        }
+                        }*/
                     }
                     self.link_from = None;
                 }
@@ -173,7 +176,7 @@ impl<W: NodeWidget> Nodes<W> {
                 if response.drag_stopped() {
                     if let Some(pointer_pos) = pointer {
                         // check if dropped into any of the input nodes
-                        for (node_index, node) in self.nodes.iter().enumerate() {
+                        /*for (node_index, node) in self.nodes.iter().enumerate() {
                             for (pin_index, pin) in node.inputs.iter().enumerate() {
                                 let center = pin_position(&node.rect, pin_index, PinDirection::Input);
                                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
@@ -181,7 +184,7 @@ impl<W: NodeWidget> Nodes<W> {
                                     self.links.push((self.link_from.unwrap(), PinId { node_index, pin_index, direction: PinDirection::Input}));
                                 }
                             }
-                        }
+                        }*/
                     }
                     self.link_from = None;
                 }
