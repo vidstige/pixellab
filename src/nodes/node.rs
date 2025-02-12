@@ -1,4 +1,4 @@
-use egui::{Color32, Id, Pos2, Rect, Sense, Stroke, Vec2};
+use egui::{Color32, Id, Pos2, Rect, Sense, Stroke, Vec2, Widget};
 
 #[derive(Clone, Copy, Hash)]
 enum PinDirection {
@@ -37,18 +37,22 @@ impl Pin {
     }
 }
 
+pub trait NodeWidget {
+
+}
+
 #[derive(Debug)]
-pub struct NodeWidget<T> {
-    pub value: T,
+pub struct Node<W: NodeWidget> {
+    pub widget: W,
     pub inputs: Vec<Pin>,
     pub outputs: Vec<Pin>,
     pub rect: Rect,
 }
 
-impl<T> NodeWidget<T> {
-    pub(crate) fn new(value: T) -> Self {
+impl<W: NodeWidget> Node<W> {
+    pub(crate) fn new(widget: W) -> Self {
         Self {
-            value,
+            widget,
             inputs: Vec::new(),
             outputs: Vec::new(),
             rect: Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(100.0, 100.0)),
@@ -65,13 +69,13 @@ fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 
     Pos2::new(x, y)
 }
 
-pub struct Nodes<T> {
-    pub nodes: Vec<NodeWidget<T>>,
+pub struct Nodes<W: NodeWidget> {
+    pub nodes: Vec<Node<W>>,
     pub links: Vec<(PinId, PinId)>,
     link_from: Option<PinId>, // holds link currently being connected, if any 
 }
 
-impl<T> Nodes<T> {
+impl<W: NodeWidget> Nodes<W> {
     pub fn new() -> Self {
         Self { nodes: Vec::new(), links: Vec::new(), link_from: None, }
     }
@@ -84,9 +88,9 @@ impl<T> Nodes<T> {
             pointer = input.pointer.latest_pos();
         });
 
-        let painter = ui.painter();
         
         // draw links
+        
         for (from, to) in &self.links {
             let from_node = &self.nodes[from.node_index];
             let from_center = pin_position(&from_node.rect, from.pin_index, from.direction);
@@ -97,14 +101,20 @@ impl<T> Nodes<T> {
             let mut lines = Vec::new();
             lines.push(from_center);
             lines.push(to_center);
+            let painter = ui.painter();
             painter.line(lines, Stroke::new(2.0, Color32::WHITE));
         }
 
         for (node_index, node) in self.nodes.iter().enumerate() {
             // draw rect
+            let painter = ui.painter();
             painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
             
+            //let frame_ui = ui.put(node.rect, node.widget.clone());
+            //let mut node_frame = ui.
+
             // draw input pins
+            let painter = ui.painter();
             for (pin_index, pin) in node.inputs.iter().enumerate() {
                 let center = pin_position(&node.rect, pin_index, PinDirection::Input);
                 let radius = 8.0;

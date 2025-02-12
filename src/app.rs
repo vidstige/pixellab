@@ -1,16 +1,31 @@
-use egui::Vec2;
+use egui::{Vec2, Widget};
 use tiny_skia::Pixmap;
 
-use crate::nodes::node::{NodeWidget, Nodes, Pin};
+use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
 
-enum PinValue {
+/*enum PinValue {
     Float(f32),
     String(String),
     Pixmap(Pixmap),
+}*/
+
+#[derive(Clone)]
+enum NodeType {
+    Float(f32),
+    String(String),
+}
+
+impl NodeWidget for NodeType {
+    /*fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        match self {
+            NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
+            _ => ui.response(),
+        }
+    }*/
 }
 
 pub struct PixelLab {
-    nodes: Nodes<PinValue>,
+    nodes: Nodes<NodeType>,
 }
 
 impl Default for PixelLab {
@@ -34,12 +49,12 @@ impl PixelLab {
         //}
         let mut app: PixelLab = Default::default();
 
-        let mut target = NodeWidget::new(PinValue::Float(2.2));
+        let mut target = Node::new(NodeType::Float(1.0));
         target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
         target.inputs.push(Pin::new());
         app.nodes.nodes.push(target);
 
-        let mut node1 = NodeWidget::new(PinValue::Float(1.1));
+        let mut node1 = Node::new(NodeType::Float(1.1));
         node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
@@ -48,11 +63,11 @@ impl PixelLab {
 }
 
 // runs the pipeline
-fn resolve(nodes: &Nodes<PinValue>, node_index: usize, pin_index: usize) -> PinValue{
+/*fn resolve(nodes: &Nodes<NodeType>, node_index: usize, pin_index: usize) -> NodeType {
     // 1. collect all input pins
     // 2. call this nodes callable
     PinValue::Float(9.9)
-}
+}*/
 
 impl eframe::App for PixelLab {
     /// Called by the frame work to save state before shutdown.
