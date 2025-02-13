@@ -1,4 +1,4 @@
-use egui::{Vec2, Widget};
+use egui::{Color32, Pos2, Sense, Stroke, Vec2, Widget};
 use tiny_skia::Pixmap;
 
 use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
@@ -18,7 +18,7 @@ enum NodeType {
 impl NodeWidget for NodeType {
     fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
-            //NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
+            NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
             _ => ui.response(),
         }
     }
@@ -107,18 +107,26 @@ impl eframe::App for PixelLab {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            //ui.heading("Pixel Labs");
-            //self.nodes.show(ui);
-            let foobar = Foobar {
-                frame: egui::Frame::window(ui.style()),
-                area: egui::Area::new(egui::Id::new("hej")).movable(true),
+            ui.heading("Pixel Labs");
+            self.nodes.show(ctx, ui);
+            
+            /*let foobar = Foobar {
+                frame: egui::Frame::group(ui.style()),
+                area: egui::Area::new(egui::Id::new("hej"))
+                    .movable(true),
             };
-            foobar.area.show(ctx, |ui| {
+            let size = Vec2::new(64.0, 64.0);
+            let response = foobar.area.show(ctx, |ui| {
                 foobar.frame.show(ui, |ui| {
+                    ui.allocate_space(size);
                     ui.label("hej");
                 });
             });
-            
+            let painter = ui.painter();
+            let rect = response.response.rect;
+            let center = Pos2::new(rect.left(), rect.top() + 32.0);
+            painter.circle(center, 8.0, Color32::LIGHT_BLUE, Stroke::NONE);
+            //println!("{}", response.response.rect.left());*/
         });
     }
 }

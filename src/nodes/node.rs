@@ -1,4 +1,4 @@
-use egui::{Color32, Id, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
+use egui::{Color32, Context, Id, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
 
 #[derive(Clone, Copy, Hash)]
 enum PinDirection {
@@ -79,7 +79,7 @@ impl<W: NodeWidget> Nodes<W> {
     pub fn new() -> Self {
         Self { nodes: Vec::new(), links: Vec::new(), link_from: None, }
     }
-    pub fn show(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    pub fn show(&mut self, ctx: &Context, ui: &mut egui::Ui) -> egui::Response {
         let sense = Sense::drag();
         let (rect, response) = ui.allocate_at_least(ui.available_size(), sense);
 
@@ -88,16 +88,14 @@ impl<W: NodeWidget> Nodes<W> {
             pointer = input.pointer.latest_pos();
         });
 
-        
-        // draw links
-        
+        // draw links        
         for (from, to) in &self.links {
             let from_node = &self.nodes[from.node_index];
             let from_center = pin_position(&from_node.rect, from.pin_index, from.direction);
-            
+
             let to_node = &self.nodes[to.node_index];
             let to_center = pin_position(&to_node.rect, to.pin_index, to.direction);
-            
+
             let mut lines = Vec::new();
             lines.push(from_center);
             lines.push(to_center);
@@ -110,11 +108,16 @@ impl<W: NodeWidget> Nodes<W> {
             //let painter = ui.painter();
             //painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
             
-            let mut frame = egui::Frame::group(ui.style());
-            ui.push_id(node_index, |ui| {
-                ui.put(node.rect, &mut frame);
+            //let mut frame = egui::Frame::group(ui.style());
+            //frame.show(ui, |ui| node.widget.ui(ui));
+            let frame = egui::Frame::group(ui.style());
+            let size = Vec2::new(64.0, 64.0);
+            ui.allocate_new_ui(egui::UiBuilder::new().id_salt(node_index).max_rect(node.rect), |ui| {
+                frame.show(ui, |ui| {
+                    node.widget.ui(ui);
+                    ui.allocate_space(ui.available_size()); 
+                });
             });
-            frame.show(ui, |ui| node.widget.ui(ui));
             
             // draw input pins
             let painter = ui.painter();
