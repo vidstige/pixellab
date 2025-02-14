@@ -115,7 +115,7 @@ impl<W: NodeWidget> Nodes<W> {
             
             //let mut frame = egui::Frame::group(ui.style());
             //frame.show(ui, |ui| node.widget.ui(ui));
-            let frame = egui::Frame::group(ui.style());
+            let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
             let response = ui.allocate_new_ui(egui::UiBuilder::new().id_salt(node_index).max_rect(node.rect), |ui| {
                 frame.show(ui, |ui| {
                     node.widget.ui(ui);
