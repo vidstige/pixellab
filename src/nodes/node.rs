@@ -104,6 +104,11 @@ impl<W: NodeWidget> Nodes<W> {
         }
 
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
+            
+            let response = ui.interact(node.rect, ui.id().with(node_index), sense);
+            if response.dragged() {
+                node.rect = node.rect.translate(response.drag_delta());
+            }
             // draw rect
             //let painter = ui.painter();
             //painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
@@ -111,18 +116,18 @@ impl<W: NodeWidget> Nodes<W> {
             //let mut frame = egui::Frame::group(ui.style());
             //frame.show(ui, |ui| node.widget.ui(ui));
             let frame = egui::Frame::group(ui.style());
-            let size = Vec2::new(64.0, 64.0);
-            ui.allocate_new_ui(egui::UiBuilder::new().id_salt(node_index).max_rect(node.rect), |ui| {
+            let response = ui.allocate_new_ui(egui::UiBuilder::new().id_salt(node_index).max_rect(node.rect), |ui| {
                 frame.show(ui, |ui| {
                     node.widget.ui(ui);
                     ui.allocate_space(ui.available_size()); 
                 });
             });
+            let rect = response.response.rect;
             
             // draw input pins
             let painter = ui.painter();
             for (pin_index, pin) in node.inputs.iter().enumerate() {
-                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
+                let center = pin_position(&rect, pin_index, PinDirection::Input);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
@@ -145,7 +150,7 @@ impl<W: NodeWidget> Nodes<W> {
                         // check if dropped into any of the output nodes
                         /*for (node_index, node) in self.nodes.iter().enumerate() {
                             for (pin_index, pin) in node.outputs.iter().enumerate() {
-                                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
+                                let center = pin_position(&rect, pin_index, PinDirection::Output);
                                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                                 if pin_rect.contains(pointer_pos) {
                                     self.links.push((PinId { node_index, pin_index, direction: PinDirection::Output}, self.link_from.unwrap()));
@@ -158,7 +163,7 @@ impl<W: NodeWidget> Nodes<W> {
             }
             // draw output pins
             for (pin_index, pin) in node.outputs.iter().enumerate() {
-                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
+                let center = pin_position(&rect, pin_index, PinDirection::Output);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
@@ -181,7 +186,7 @@ impl<W: NodeWidget> Nodes<W> {
                         // check if dropped into any of the input nodes
                         /*for (node_index, node) in self.nodes.iter().enumerate() {
                             for (pin_index, pin) in node.inputs.iter().enumerate() {
-                                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
+                                let center = pin_position(&rect, pin_index, PinDirection::Input);
                                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                                 if pin_rect.contains(pointer_pos) {
                                     self.links.push((self.link_from.unwrap(), PinId { node_index, pin_index, direction: PinDirection::Input}));
@@ -191,12 +196,6 @@ impl<W: NodeWidget> Nodes<W> {
                     }
                     self.link_from = None;
                 }
-            }
-        }
-        for (node_index, node) in self.nodes.iter_mut().enumerate() {
-            let response = ui.interact(node.rect, ui.id().with(node_index), sense);
-            if response.dragged() {
-                node.rect = node.rect.translate(response.drag_delta());
             }
         }
         response
