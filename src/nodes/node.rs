@@ -16,7 +16,7 @@ impl PinDirection {
 }
 
 #[derive(Clone, Copy)]
-struct PinId {
+pub struct PinId {
     node_index: usize,
     pin_index: usize,
     direction: PinDirection,
@@ -103,15 +103,28 @@ impl<W: NodeWidget> Nodes<W> {
             painter.line(lines, Stroke::new(2.0, Color32::WHITE));
         }
 
+        // pre-calculate all inputs and outputs to avoid mutable borrow woes
+        let radius = 8.0;
+        let mut output_pins = Vec::new();
+        let mut input_pins = Vec::new();
+        for (node_index, node) in self.nodes.iter().enumerate() {
+            for (pin_index, pin) in node.outputs.iter().enumerate() {
+                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
+                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
+                output_pins.push((node_index, pin_index, pin_rect));
+            }
+            for (pin_index, pin) in node.inputs.iter().enumerate() {
+                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
+                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
+                input_pins.push((node_index, pin_index, pin_rect));
+            }
+        }
+
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
-            
             let response = ui.interact(node.rect, ui.id().with(node_index), sense);
             if response.dragged() {
                 node.rect = node.rect.translate(response.drag_delta());
             }
-            // draw rect
-            //let painter = ui.painter();
-            //painter.rect_filled(node.rect, 4.0, Color32::DARK_GRAY);
             
             //let mut frame = egui::Frame::group(ui.style());
             //frame.show(ui, |ui| node.widget.ui(ui));
@@ -122,13 +135,12 @@ impl<W: NodeWidget> Nodes<W> {
                     ui.allocate_space(ui.available_size()); 
                 });
             });
-            let rect = response.response.rect;
+            node.rect = response.response.rect;
             
             // draw input pins
             let painter = ui.painter();
             for (pin_index, pin) in node.inputs.iter().enumerate() {
-                let center = pin_position(&rect, pin_index, PinDirection::Input);
-                let radius = 8.0;
+                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
@@ -146,24 +158,22 @@ impl<W: NodeWidget> Nodes<W> {
                     }
                 }
                 if response.drag_stopped() {
+                    println!("drag stopped");
                     if let Some(pointer_pos) = pointer {
                         // check if dropped into any of the output nodes
-                        /*for (node_index, node) in self.nodes.iter().enumerate() {
-                            for (pin_index, pin) in node.outputs.iter().enumerate() {
-                                let center = pin_position(&rect, pin_index, PinDirection::Output);
-                                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
-                                if pin_rect.contains(pointer_pos) {
-                                    self.links.push((PinId { node_index, pin_index, direction: PinDirection::Output}, self.link_from.unwrap()));
-                                }
+                        for (node_index, pin_index, pin_rect) in &output_pins {
+                            println!("{} {}", pin_rect, pointer_pos);
+                            if pin_rect.contains(pointer_pos) {
+                                self.links.push((PinId { node_index: *node_index, pin_index: *pin_index, direction: PinDirection::Output}, self.link_from.unwrap()));
                             }
-                        }*/
+                        }
                     }
                     self.link_from = None;
                 }
             }
             // draw output pins
             for (pin_index, pin) in node.outputs.iter().enumerate() {
-                let center = pin_position(&rect, pin_index, PinDirection::Output);
+                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
@@ -184,15 +194,11 @@ impl<W: NodeWidget> Nodes<W> {
                 if response.drag_stopped() {
                     if let Some(pointer_pos) = pointer {
                         // check if dropped into any of the input nodes
-                        /*for (node_index, node) in self.nodes.iter().enumerate() {
-                            for (pin_index, pin) in node.inputs.iter().enumerate() {
-                                let center = pin_position(&rect, pin_index, PinDirection::Input);
-                                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
-                                if pin_rect.contains(pointer_pos) {
-                                    self.links.push((self.link_from.unwrap(), PinId { node_index, pin_index, direction: PinDirection::Input}));
-                                }
+                        for (node_index, pin_index, pin_rect) in &input_pins {
+                            if pin_rect.contains(pointer_pos) {
+                                self.links.push((PinId { node_index: *node_index, pin_index: *pin_index, direction: PinDirection::Input}, self.link_from.unwrap()));
                             }
-                        }*/
+                        }
                     }
                     self.link_from = None;
                 }
