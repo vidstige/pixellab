@@ -42,16 +42,36 @@ impl Instant {
     fn zero() -> Self { Self { millis: 0, } }
 }
 
-/*enum PinValue {
+enum PinValue {
     Float(f32),
     String(String),
     Pixmap(Pixmap),
-}*/
+}
+impl PinValue {
+    fn pixmap(self) -> Pixmap {
+        if let PinValue::Pixmap(pixmap) = self {
+            pixmap
+        } else {
+            panic!("Unexpected pin value")
+        }
+    }
+}
 
 #[derive(Clone)]
 enum NodeType {
     Float(f32),
     String(String),
+    Output,
+}
+
+impl NodeType {
+    fn evaluate(&self, pin_values: Vec<PinValue>, pin_index: usize) -> PinValue {
+        match self {
+            NodeType::Float(value) => PinValue::Float(*value),
+            NodeType::String(value) => PinValue::String(value.clone()),
+            NodeType::Output => PinValue::Pixmap(pin_values.into_iter().next().unwrap().pixmap()),
+        }
+    }
 }
 
 impl NodeWidget for NodeType {
@@ -118,11 +138,17 @@ impl PixelLab {
 }
 
 // runs the pipeline
-/*fn resolve(nodes: &Nodes<NodeType>, node_index: usize, pin_index: usize) -> NodeType {
+fn resolve(nodes: &Nodes<NodeType>, node_index: usize, pin_index: usize) -> PinValue {
     // 1. collect all input pins
-    // 2. call this nodes callable
-    PinValue::Float(9.9)
-}*/
+    let input_pins = nodes.inputs_for(node_index);
+    // 2. resolve respective output pins
+    let input_values: Vec<_> = input_pins
+        .iter()
+        .map(|pin_id| resolve(nodes, pin_id.node_index, pin_id.pin_index))
+        .collect();
+    // 3. call this nodes callable
+    nodes.nodes[node_index].widget.evaluate(input_values, pin_index)
+}
 
 struct Timeline {
     caret: Instant,
@@ -201,7 +227,18 @@ impl eframe::App for PixelLab {
             ui.heading("Pixel Labs");
             // node editor
             self.nodes.show(ctx, ui);
+
             // output window
+            // evaluate pixmap
+            if let PinValue::Pixmap(pixmap) = resolve(&self.nodes, 0, 0) {
+                self.output_texture.set(
+                    ColorImage::from_rgba_premultiplied(
+                        [pixmap.width() as usize, pixmap.height() as usize],
+                        pixmap.data(),
+                    ),
+                    TextureOptions::default(),
+                );
+            }
             egui::Window::new("Output").show(ctx, |ui| {
                 ui.add(egui::Image::from_texture(&self.output_texture));
             });
