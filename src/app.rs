@@ -1,6 +1,6 @@
-use std::{iter::Sum, ops::Add};
+use std::{iter::Sum, ops::Add, sync::Arc};
 
-use egui::{Color32, Sense, Stroke, Vec2, Widget};
+use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use tiny_skia::Pixmap;
 
 use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
@@ -64,24 +64,14 @@ impl NodeWidget for NodeType {
 }
 
 struct VideoSettings {
-    resolution: (usize, usize),
+    resolution: [usize; 2],
 }
 
 pub struct PixelLab {
     video_settings: VideoSettings,
+    output_texture: TextureHandle,
     timeline: Timeline,
     nodes: Nodes<NodeType>,
-}
-
-impl Default for PixelLab {
-    fn default() -> Self {
-        let fps = 30.0;
-        Self {
-            video_settings: VideoSettings { resolution: (320, 200), },
-            timeline: Timeline::new(fps),
-            nodes: Nodes::new(),
-        }
-    }
 }
 
 impl PixelLab {
@@ -95,7 +85,19 @@ impl PixelLab {
         //if let Some(storage) = cc.storage {
         //    return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         //}
-        let mut app: PixelLab = Default::default();
+        let fps = 30.0;
+        let resolution = [320, 200];
+        let output_texture = cc.egui_ctx.load_texture(
+            "output",
+            ImageData::Color(Arc::new(ColorImage::new(resolution, Color32::TRANSPARENT))),
+            TextureOptions::default(),
+        );
+        let mut app = PixelLab {
+            video_settings: VideoSettings { resolution, },
+            output_texture,
+            timeline: Timeline::new(fps),
+            nodes: Nodes::new(),
+        };
 
         let mut target = Node::new(NodeType::Float(1.0));
         target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
@@ -158,6 +160,7 @@ impl Widget for &mut Timeline {
         // draw caret
         let x = rect.left() + self.caret.millis as f32 * rect.width() / total_duration.as_millis() as f32;
         painter.vline(x, rect.bottom_up_range(), Stroke::new(1.0, Color32::LIGHT_GRAY));
+
         response
     }
 }
@@ -196,7 +199,12 @@ impl eframe::App for PixelLab {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
+            // node editor
             self.nodes.show(ctx, ui);
+            // output window
+            egui::Window::new("Output").show(ctx, |ui| {
+                ui.add(egui::Image::from_texture(&self.output_texture));
+            });
         });
     }
 }
