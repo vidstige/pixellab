@@ -140,7 +140,8 @@ impl Timeline {
 impl Widget for &mut Timeline {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let desired_size = Vec2::new(ui.available_width(), 100.0);
-        let (rect, response) = ui.allocate_at_least(desired_size, Sense::empty());
+        let (rect, response) = ui.allocate_at_least(desired_size, Sense::drag());
+
         let frame_duration = Duration::from_secs(1.0 / self.fps);
         let total_duration = self.duration();
         let frame_count = total_duration.as_millis() / frame_duration.as_millis();
@@ -150,7 +151,11 @@ impl Widget for &mut Timeline {
             let y = rect.top()..=rect.top() + 0.5  *rect.height();
             painter.vline(x, y, Stroke::new(1.0, Color32::DARK_GRAY));
         }
-        // draw carret
+        // handle caret drag
+        if let Some(pointer) = response.interact_pointer_pos() {
+            self.caret.millis = (total_duration.as_millis() as f32 * pointer.x / rect.width()) as u32;
+        }
+        // draw caret
         let x = rect.left() + self.caret.millis as f32 * rect.width() / total_duration.as_millis() as f32;
         painter.vline(x, rect.bottom_up_range(), Stroke::new(1.0, Color32::LIGHT_GRAY));
         response
