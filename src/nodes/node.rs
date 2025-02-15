@@ -17,8 +17,8 @@ impl PinDirection {
 
 #[derive(Clone, Copy)]
 pub struct PinId {
-    node_index: usize,
-    pin_index: usize,
+    pub node_index: usize,
+    pub pin_index: usize,
     direction: PinDirection,
 }
 impl PinId {
@@ -205,5 +205,13 @@ impl<W: NodeWidget> Nodes<W> {
             }
         }
         response
+    }
+
+    // Finds all PinIds linking to the specified node_index
+    pub fn inputs_for(&self, node_index: usize) -> Vec<PinId> {
+        self.links
+            .iter()
+            .filter_map(|(from, to)| (to.node_index == node_index).then_some(*from))
+            .collect()
     }
 }

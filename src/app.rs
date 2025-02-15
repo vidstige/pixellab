@@ -43,8 +43,10 @@ impl Instant {
 }
 
 enum PinValue {
+    None,
     Float(f32),
     String(String),
+    Color(Color32),
     Pixmap(Pixmap),
 }
 impl PinValue {
@@ -61,6 +63,7 @@ impl PinValue {
 enum NodeType {
     Float(f32),
     String(String),
+    Color(Color32),
     Output,
 }
 
@@ -69,7 +72,8 @@ impl NodeType {
         match self {
             NodeType::Float(value) => PinValue::Float(*value),
             NodeType::String(value) => PinValue::String(value.clone()),
-            NodeType::Output => PinValue::Pixmap(pin_values.into_iter().next().unwrap().pixmap()),
+            NodeType::Color(value) => PinValue::Color(*value),
+            NodeType::Output => pin_values.into_iter().next().unwrap_or(PinValue::None),
         }
     }
 }
@@ -78,6 +82,10 @@ impl NodeWidget for NodeType {
     fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
             NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
+            NodeType::Color(value) => {
+                egui::color_picker::color_picker_color32(ui, value, egui::color_picker::Alpha::Opaque);
+                ui.response()
+            },
             _ => ui.response(),
         }
     }
@@ -119,12 +127,12 @@ impl PixelLab {
             nodes: Nodes::new(),
         };
 
-        let mut target = Node::new(NodeType::Float(1.0));
-        target.rect = target.rect.translate(Vec2::new(120.0, 10.0));
-        target.inputs.push(Pin::new());
-        app.nodes.nodes.push(target);
+        let mut output = Node::new(NodeType::Output);
+        output.rect = output.rect.translate(Vec2::new(120.0, 10.0));
+        output.inputs.push(Pin::new());
+        app.nodes.nodes.push(output);
 
-        let mut node1 = Node::new(NodeType::Float(1.1));
+        let mut node1 = Node::new(NodeType::Color(Color32::GRAY));
         node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
