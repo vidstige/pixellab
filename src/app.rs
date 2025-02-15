@@ -148,8 +148,11 @@ impl Widget for &mut Timeline {
         for frame_index in 0..frame_count {
             let x = rect.left() + rect.width() * frame_index as f32 / frame_count as f32;
             let y = rect.top()..=rect.top() + 0.5  *rect.height();
-            painter.vline(x, y, Stroke::new(1.0, Color32::LIGHT_GRAY));
+            painter.vline(x, y, Stroke::new(1.0, Color32::DARK_GRAY));
         }
+        // draw carret
+        let x = rect.left() + self.caret.millis as f32 * rect.width() / total_duration.as_millis() as f32;
+        painter.vline(x, rect.bottom_up_range(), Stroke::new(1.0, Color32::LIGHT_GRAY));
         response
     }
 }
