@@ -1,4 +1,6 @@
-use egui::{Color32, Pos2, Sense, Stroke, Vec2, Widget};
+use std::time::Duration;
+
+use egui::{Color32, Sense, Stroke, Vec2, Widget};
 use tiny_skia::Pixmap;
 
 use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
@@ -24,13 +26,22 @@ impl NodeWidget for NodeType {
     }
 }
 
+struct VideoSettings {
+    resolution: (usize, usize),
+}
+
 pub struct PixelLab {
+    video_settings: VideoSettings,
+    timeline: Timeline,
     nodes: Nodes<NodeType>,
 }
 
 impl Default for PixelLab {
     fn default() -> Self {
+        let fps = 30.0;
         Self {
+            video_settings: VideoSettings { resolution: (320, 200), },
+            timeline: Timeline::new(fps),
             nodes: Nodes::new(),
         }
     }
@@ -58,6 +69,11 @@ impl PixelLab {
         node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
+        // add some stuff on the timeline
+        app.timeline.blocks.push(Duration::from_secs_f32(3.0));
+        //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
+        //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
+
         app
     }
 }
@@ -69,9 +85,35 @@ impl PixelLab {
     PinValue::Float(9.9)
 }*/
 
-struct Foobar {
-    frame: egui::Frame,
-    area: egui::Area,
+struct Timeline {
+    fps: f32,
+    blocks: Vec<Duration>,
+}
+
+impl Timeline {
+    fn new(fps: f32) -> Self {
+        Self { fps, blocks: Vec::new(), }
+    }
+    fn duration(&self) -> Duration {
+        self.blocks.iter().sum()
+    }
+}
+
+impl Widget for &mut Timeline {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let desired_size = Vec2::new(ui.available_width(), 100.0);
+        let (rect, response) = ui.allocate_at_least(desired_size, Sense::empty());
+        let frame_duration = Duration::from_secs_f32(1.0 / self.fps);
+        let total_duration = self.duration();
+        let frame_count = total_duration.as_millis() / frame_duration.as_millis();
+        let painter = ui.painter();
+        for frame_index in 0..frame_count {
+            let x = rect.left() + rect.width() * frame_index as f32 / frame_count as f32;
+            painter.vline(x, rect.bottom_up_range(), Stroke::new(1.0, Color32::LIGHT_GRAY));
+        }
+        
+        response
+    }
 }
 
 impl eframe::App for PixelLab {
@@ -102,31 +144,14 @@ impl eframe::App for PixelLab {
             });
         });
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.label("Timeline");
+            ui.add(&mut self.timeline);
+            //ui.label("Timeline");
             egui::warn_if_debug_build(ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
             self.nodes.show(ctx, ui);
-            
-            /*let foobar = Foobar {
-                frame: egui::Frame::group(ui.style()),
-                area: egui::Area::new(egui::Id::new("hej"))
-                    .movable(true),
-            };
-            let size = Vec2::new(64.0, 64.0);
-            let response = foobar.area.show(ctx, |ui| {
-                foobar.frame.show(ui, |ui| {
-                    ui.allocate_space(size);
-                    ui.label("hej");
-                });
-            });
-            let painter = ui.painter();
-            let rect = response.response.rect;
-            let center = Pos2::new(rect.left(), rect.top() + 32.0);
-            painter.circle(center, 8.0, Color32::LIGHT_BLUE, Stroke::NONE);
-            //println!("{}", response.response.rect.left());*/
         });
     }
 }
