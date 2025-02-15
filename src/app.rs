@@ -147,9 +147,9 @@ impl Widget for &mut Timeline {
         let painter = ui.painter();
         for frame_index in 0..frame_count {
             let x = rect.left() + rect.width() * frame_index as f32 / frame_count as f32;
-            painter.vline(x, rect.bottom_up_range(), Stroke::new(1.0, Color32::LIGHT_GRAY));
+            let y = rect.top()..=rect.top() + 0.5  *rect.height();
+            painter.vline(x, y, Stroke::new(1.0, Color32::LIGHT_GRAY));
         }
-        
         response
     }
 }
@@ -183,7 +183,6 @@ impl eframe::App for PixelLab {
         });
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.add(&mut self.timeline);
-            //ui.label("Timeline");
             egui::warn_if_debug_build(ui);
         });
 
