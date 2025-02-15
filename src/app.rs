@@ -1,9 +1,46 @@
-use std::time::Duration;
+use std::{iter::Sum, ops::Add};
 
 use egui::{Color32, Sense, Stroke, Vec2, Widget};
 use tiny_skia::Pixmap;
 
 use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
+
+// time stuff
+struct Duration {
+    millis: u32,
+}
+impl Duration {
+    fn from_secs(seconds: f32) -> Duration {
+        Self { millis: (1000.0 * seconds) as u32 }
+    }
+    fn from_millis(millis: u32) -> Duration {
+        Self { millis, }
+    }
+    fn as_millis(&self) -> u32 { self.millis }
+}
+impl Add for &Duration {
+    type Output = Duration;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Duration { millis: self.millis + rhs.millis }
+    }
+}
+impl<'a> Sum<&'a Duration> for Duration {
+    fn sum<I: Iterator<Item = &'a Duration>>(iter: I) -> Duration {
+        Duration::from_millis(iter.map(|d| d.millis).sum())
+    }
+}
+struct Instant {
+    millis: u32,
+}
+impl Default for Instant {
+    fn default() -> Self {
+        Self { millis: Default::default() }
+    }
+}
+impl Instant {
+    fn zero() -> Self { Self { millis: 0, } }
+}
 
 /*enum PinValue {
     Float(f32),
@@ -70,7 +107,7 @@ impl PixelLab {
         app.nodes.nodes.push(node1);
 
         // add some stuff on the timeline
-        app.timeline.blocks.push(Duration::from_secs_f32(3.0));
+        app.timeline.blocks.push(Duration::from_secs(3.0));
         //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
         //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
 
@@ -86,13 +123,14 @@ impl PixelLab {
 }*/
 
 struct Timeline {
+    caret: Instant,
     fps: f32,
     blocks: Vec<Duration>,
 }
 
 impl Timeline {
     fn new(fps: f32) -> Self {
-        Self { fps, blocks: Vec::new(), }
+        Self { caret: Instant::zero(), fps, blocks: Vec::new(), }
     }
     fn duration(&self) -> Duration {
         self.blocks.iter().sum()
@@ -103,7 +141,7 @@ impl Widget for &mut Timeline {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let desired_size = Vec2::new(ui.available_width(), 100.0);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::empty());
-        let frame_duration = Duration::from_secs_f32(1.0 / self.fps);
+        let frame_duration = Duration::from_secs(1.0 / self.fps);
         let total_duration = self.duration();
         let frame_count = total_duration.as_millis() / frame_duration.as_millis();
         let painter = ui.painter();
