@@ -133,7 +133,6 @@ impl PixelLab {
         };
 
         let mut output = Node::new(NodeType::Output);
-        output.rect = output.rect.translate(Vec2::new(120.0, 10.0));
         output.inputs.push(Pin::new());
         app.nodes.nodes.push(output);
 

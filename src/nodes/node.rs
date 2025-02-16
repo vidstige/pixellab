@@ -46,7 +46,6 @@ pub struct Node<W: NodeWidget> {
     pub widget: W,
     pub inputs: Vec<Pin>,
     pub outputs: Vec<Pin>,
-    pub rect: Rect,
 }
 
 impl<W: NodeWidget> Node<W> {
@@ -55,7 +54,7 @@ impl<W: NodeWidget> Node<W> {
             widget,
             inputs: Vec::new(),
             outputs: Vec::new(),
-            rect: Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(100.0, 100.0)),
+            //rect: Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(100.0, 100.0)),
         }
     }
 }
@@ -83,18 +82,27 @@ impl<W: NodeWidget> Nodes<W> {
         let sense = Sense::drag();
         let (rect, response) = ui.allocate_at_least(ui.available_size(), sense);
 
-        let mut pointer = None;
-        ui.input(|input| {
-            pointer = input.pointer.latest_pos();
-        });
+        let mut node_rects = Vec::new();
+        for (node_index, node) in self.nodes.iter_mut().enumerate() {
+            let area = egui::Area::new(Id::new(node_index)).movable(true);
+            let response = area.show(ctx, |ui| {
+                let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
+                frame.show(ui, |ui| {
+                    ui.set_min_size(Vec2::new(48.0, 64.0));
+                    node.widget.ui(ui);
+                });
+            }).response;
+            let node_rect = response.rect;
+            node_rects.push(node_rect);
+        }
 
         // draw links        
         for (from, to) in &self.links {
-            let from_node = &self.nodes[from.node_index];
-            let from_center = pin_position(&from_node.rect, from.pin_index, from.direction);
+            let from_rect = &node_rects[from.node_index];
+            let from_center = pin_position(from_rect, from.pin_index, from.direction);
 
-            let to_node = &self.nodes[to.node_index];
-            let to_center = pin_position(&to_node.rect, to.pin_index, to.direction);
+            let to_rect = &node_rects[to.node_index];
+            let to_center = pin_position(to_rect, to.pin_index, to.direction);
 
             let mut lines = Vec::new();
             lines.push(from_center);
@@ -107,40 +115,25 @@ impl<W: NodeWidget> Nodes<W> {
         let radius = 8.0;
         let mut output_pins = Vec::new();
         let mut input_pins = Vec::new();
-        for (node_index, node) in self.nodes.iter().enumerate() {
+        for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
             for (pin_index, pin) in node.outputs.iter().enumerate() {
-                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
+                let center = pin_position(&node_rect, pin_index, PinDirection::Output);
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 output_pins.push((node_index, pin_index, pin_rect));
             }
             for (pin_index, pin) in node.inputs.iter().enumerate() {
-                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
+                let center = pin_position(&node_rect, pin_index, PinDirection::Input);
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 input_pins.push((node_index, pin_index, pin_rect));
             }
         }
 
-        for (node_index, node) in self.nodes.iter_mut().enumerate() {
-            let response = ui.interact(node.rect, ui.id().with(node_index), sense);
-            if response.dragged() {
-                node.rect = node.rect.translate(response.drag_delta());
-            }
-            
-            //let mut frame = egui::Frame::group(ui.style());
-            //frame.show(ui, |ui| node.widget.ui(ui));
-            let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
-            let response = ui.allocate_new_ui(egui::UiBuilder::new().id_salt(node_index).max_rect(node.rect), |ui| {
-                frame.show(ui, |ui| {
-                    node.widget.ui(ui);
-                    ui.allocate_space(ui.available_size()); 
-                });
-            });
-            node.rect = response.response.rect;
-            
+        // draw pins
+        for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
             // draw input pins
             let painter = ui.painter();
             for (pin_index, pin) in node.inputs.iter().enumerate() {
-                let center = pin_position(&node.rect, pin_index, PinDirection::Input);
+                let center = pin_position(&node_rect, pin_index, PinDirection::Input);
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
@@ -150,7 +143,7 @@ impl<W: NodeWidget> Nodes<W> {
                     self.link_from = Some(pin_id);
                 }
                 if response.dragged() {
-                    if let Some(pointer) = pointer {
+                    if let Some(pointer) = response.interact_pointer_pos() {
                         let mut lines = Vec::new();
                         lines.push(center);
                         lines.push(pointer);
@@ -159,7 +152,7 @@ impl<W: NodeWidget> Nodes<W> {
                 }
                 if response.drag_stopped() {
                     println!("drag stopped");
-                    if let Some(pointer_pos) = pointer {
+                    if let Some(pointer_pos) = response.interact_pointer_pos() {
                         // check if dropped into any of the output nodes
                         for (node_index, pin_index, pin_rect) in &output_pins {
                             println!("{} {}", pin_rect, pointer_pos);
@@ -171,9 +164,10 @@ impl<W: NodeWidget> Nodes<W> {
                     self.link_from = None;
                 }
             }
+            
             // draw output pins
             for (pin_index, pin) in node.outputs.iter().enumerate() {
-                let center = pin_position(&node.rect, pin_index, PinDirection::Output);
+                let center = pin_position(node_rect, pin_index, PinDirection::Output);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
@@ -184,7 +178,7 @@ impl<W: NodeWidget> Nodes<W> {
                     self.link_from = Some(pin_id);
                 }
                 if response.dragged() {
-                    if let Some(pointer) = pointer {
+                    if let Some(pointer) = response.interact_pointer_pos() {
                         let mut lines = Vec::new();
                         lines.push(center);
                         lines.push(pointer);
@@ -192,7 +186,7 @@ impl<W: NodeWidget> Nodes<W> {
                     }
                 }
                 if response.drag_stopped() {
-                    if let Some(pointer_pos) = pointer {
+                    if let Some(pointer_pos) = response.interact_pointer_pos() {
                         // check if dropped into any of the input nodes
                         for (node_index, pin_index, pin_rect) in &input_pins {
                             if pin_rect.contains(pointer_pos) {
