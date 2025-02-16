@@ -64,6 +64,7 @@ enum NodeType {
     Float(f32),
     String(String),
     Color(Color32),
+    Fill,
     Output,
 }
 
@@ -73,6 +74,10 @@ impl NodeType {
             NodeType::Float(value) => PinValue::Float(*value),
             NodeType::String(value) => PinValue::String(value.clone()),
             NodeType::Color(value) => PinValue::Color(*value),
+            NodeType::Fill => {
+                //let color = pin_values.into_iter().next().unwrap_or(PinValue::None);
+                PinValue::Pixmap(Pixmap::new(320, 200).unwrap())
+            }
             NodeType::Output => pin_values.into_iter().next().unwrap_or(PinValue::None),
         }
     }
