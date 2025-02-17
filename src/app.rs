@@ -1,7 +1,7 @@
-use std::{iter::Sum, ops::Add, sync::Arc};
+use std::{fmt, iter::Sum, ops::Add, sync::Arc};
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
-use tiny_skia::Pixmap;
+use tiny_skia::{Color, Pixmap};
 
 use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
 
@@ -46,7 +46,7 @@ enum PinValue {
     None,
     Float(f32),
     String(String),
-    Color(Color32),
+    Color(Color),
     Pixmap(Pixmap),
 }
 impl PinValue {
@@ -57,9 +57,17 @@ impl PinValue {
             panic!("Unexpected pin value")
         }
     }
+    
+    fn color(self) -> Option<Color> {
+        if let PinValue::Color(color) = self {
+            Some(color)
+        } else {
+            None
+        }
+    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum NodeType {
     Float(f32),
     String(String),
@@ -73,10 +81,14 @@ impl NodeType {
         match self {
             NodeType::Float(value) => PinValue::Float(*value),
             NodeType::String(value) => PinValue::String(value.clone()),
-            NodeType::Color(value) => PinValue::Color(*value),
+            NodeType::Color(value) => PinValue::Color(Color::from_rgba8(
+                value.r(), value.g(), value.b(), value.a())
+            ),
             NodeType::Fill => {
-                //let color = pin_values.into_iter().next().unwrap_or(PinValue::None);
-                PinValue::Pixmap(Pixmap::new(320, 200).unwrap())
+                let color = pin_values.into_iter().next().unwrap_or(PinValue::None).color().unwrap_or(Color::TRANSPARENT);
+                let mut pixmap = Pixmap::new(320, 200).unwrap();
+                pixmap.fill(color);
+                PinValue::Pixmap(pixmap)
             }
             NodeType::Output => pin_values.into_iter().next().unwrap_or(PinValue::None),
         }
@@ -148,13 +160,9 @@ impl PixelLab {
             nodes: Nodes::new(),
         };
 
-        let mut output = Node::new(NodeType::Output);
-        //output.inputs.push(Pin::new());
-        app.nodes.nodes.push(output);
-
-        let mut node1 = Node::new(NodeType::Color(Color32::GRAY));
-        //node1.outputs.push(Pin::new());
-        app.nodes.nodes.push(node1);
+        app.nodes.nodes.push(Node::new(NodeType::Output));
+        app.nodes.nodes.push(Node::new(NodeType::Color(Color32::GRAY)));
+        app.nodes.nodes.push(Node::new(NodeType::Fill));
 
         // add some stuff on the timeline
         app.timeline.blocks.push(Duration::from_secs(3.0));
@@ -164,6 +172,7 @@ impl PixelLab {
         app
     }
 }
+
 
 // runs the pipeline
 fn resolve(nodes: &Nodes<NodeType>, node_index: usize, pin_index: usize) -> PinValue {
@@ -259,6 +268,7 @@ impl eframe::App for PixelLab {
             // output window
             // evaluate pixmap
             if let PinValue::Pixmap(pixmap) = resolve(&self.nodes, 0, 0) {
+                println!("got pixmap {}x{}", pixmap.width(), pixmap.height());
                 self.output_texture.set(
                     ColorImage::from_rgba_premultiplied(
                         [pixmap.width() as usize, pixmap.height() as usize],

@@ -1,6 +1,6 @@
 use egui::{Color32, Context, Id, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
 
-#[derive(Clone, Copy, Hash)]
+#[derive(Clone, Copy, Debug, Hash)]
 enum PinDirection {
     Input,
     Output,
@@ -15,7 +15,7 @@ impl PinDirection {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct PinId {
     pub node_index: usize,
     pub pin_index: usize,
@@ -148,7 +148,6 @@ impl<W: NodeWidget> Nodes<W> {
                     }
                 }
                 if response.drag_stopped() {
-                    println!("drag stopped");
                     if let Some(pointer_pos) = response.interact_pointer_pos() {
                         // check if dropped into any of the output nodes
                         for (node_index, pin_index, pin_rect) in &output_pins {
@@ -187,7 +186,7 @@ impl<W: NodeWidget> Nodes<W> {
                         // check if dropped into any of the input nodes
                         for (node_index, pin_index, pin_rect) in &input_pins {
                             if pin_rect.contains(pointer_pos) {
-                                self.links.push((PinId { node_index: *node_index, pin_index: *pin_index, direction: PinDirection::Input}, self.link_from.unwrap()));
+                                self.links.push((self.link_from.unwrap(), PinId { node_index: *node_index, pin_index: *pin_index, direction: PinDirection::Input}));
                             }
                         }
                     }
