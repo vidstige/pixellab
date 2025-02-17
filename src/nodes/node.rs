@@ -135,9 +135,8 @@ impl<W: NodeWidget> Nodes<W> {
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 let pin_id = PinId { node_index, pin_index, direction: PinDirection::Input};
                 let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
-                if response.drag_started() { // TODO: is this if-statement needed?
-                    response.dnd_set_drag_payload(pin_id);
-                }
+                
+                response.dnd_set_drag_payload(pin_id);
                 if response.dragged() {
                     if let Some(pointer) = response.interact_pointer_pos() {
                         let mut lines = Vec::new();
@@ -160,9 +159,8 @@ impl<W: NodeWidget> Nodes<W> {
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 let pin_id = PinId { node_index, pin_index, direction: PinDirection::Output};
                 let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
-                if response.drag_started() {
-                    response.dnd_set_drag_payload(pin_id);
-                }
+                
+                response.dnd_set_drag_payload(pin_id);
                 if response.dragged() {
                     if let Some(pointer) = response.interact_pointer_pos() {
                         let mut lines = Vec::new();
