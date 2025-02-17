@@ -133,8 +133,7 @@ impl<W: NodeWidget> Graph<W> {
         }
         closed_indices.reverse();
         for index in closed_indices {
-            // TODO: remove all links referencing this node
-            self.nodes.remove(index);
+            self.remove_node(index);
         }
 
         // draw links        
@@ -184,5 +183,21 @@ impl<W: NodeWidget> Graph<W> {
             .iter()
             .filter_map(|(from, to)| (to.node_index == node_index).then_some(*from))
             .collect()
+    }
+    
+    fn remove_node<>(&mut self, index: usize) {
+        // fist update all links referencing a node after this
+        for (from, to) in self.links.iter_mut() {
+            if from.node_index > index {
+                from.node_index -= 1;
+            }
+            if to.node_index > index {
+                to.node_index -= 1;
+            }
+        }
+        // remove all links referencing this node
+        self.links.retain(|(from, to)| from.node_index != index && to.node_index != index);
+        // finally actully remove node
+        self.nodes.remove(index);
     }
 }
