@@ -111,17 +111,29 @@ impl<W: NodeWidget> Graph<W> {
         let (rect, response) = ui.allocate_at_least(ui.available_size(), sense);
 
         let mut node_rects = Vec::new();
+        let mut closed_indices = Vec::new();
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
-            let area = egui::Area::new(Id::new(node_index)).movable(true);
-            let response = area.show(ctx, |ui| {
-                let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
-                frame.show(ui, |ui| {
-                    ui.set_min_size(Vec2::new(48.0, 64.0));
-                    node.widget.ui(ui);
-                });
-            }).response;
-            let node_rect = response.rect;
-            node_rects.push(node_rect);
+            let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
+            let window = egui::Window::new("title")
+                .id(Id::new(node_index))
+                .frame(frame)
+                .resizable(false);
+            let mut is_open = true;
+            let maybe_response = window.open(&mut is_open).show(ctx, |ui| {
+                ui.set_min_size(Vec2::new(48.0, 64.0));
+                node.widget.ui(ui);
+            });
+            if is_open {
+                let node_rect = maybe_response.unwrap().response.rect;
+                node_rects.push(node_rect);
+            } else {
+                closed_indices.push(node_index)
+            } 
+        }
+        closed_indices.reverse();
+        for index in closed_indices {
+            // TODO: remove all links referencing this node
+            self.nodes.remove(index);
         }
 
         // draw links        
