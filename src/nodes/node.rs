@@ -25,6 +25,12 @@ impl PinId {
     fn id(&self, ui: &egui::Ui) -> Id {
         ui.id().with(self.node_index).with(self.pin_index).with(self.direction)
     }
+    fn link(self, other: PinId) -> (PinId, PinId) {
+        match &self.direction {
+            &PinDirection::Input => (other, self),
+            &PinDirection::Output => (self, other),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -146,7 +152,7 @@ impl<W: NodeWidget> Nodes<W> {
                     }
                 }
                 if let Some(link_from) = response.dnd_release_payload() {
-                    self.links.push((*link_from, pin_id));
+                    self.links.push(pin_id.link(*link_from));
                 }
             }
             
@@ -170,7 +176,7 @@ impl<W: NodeWidget> Nodes<W> {
                     }
                 }
                 if let Some(link_from) = response.dnd_release_payload() {
-                    self.links.push((pin_id, *link_from));
+                    self.links.push(pin_id.link(*link_from));
                 }
                 
             }
