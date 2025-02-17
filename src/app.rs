@@ -1,46 +1,9 @@
-use std::{fmt, iter::Sum, ops::Add, sync::Arc};
+use std::sync::Arc;
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use tiny_skia::{Color, Pixmap};
 
-use crate::nodes::node::{Graph, Node, NodeWidget, Pin};
-
-// time stuff
-struct Duration {
-    millis: u32,
-}
-impl Duration {
-    fn from_secs(seconds: f32) -> Duration {
-        Self { millis: (1000.0 * seconds) as u32 }
-    }
-    fn from_millis(millis: u32) -> Duration {
-        Self { millis, }
-    }
-    fn as_millis(&self) -> u32 { self.millis }
-}
-impl Add for &Duration {
-    type Output = Duration;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Duration { millis: self.millis + rhs.millis }
-    }
-}
-impl<'a> Sum<&'a Duration> for Duration {
-    fn sum<I: Iterator<Item = &'a Duration>>(iter: I) -> Duration {
-        Duration::from_millis(iter.map(|d| d.millis).sum())
-    }
-}
-struct Instant {
-    millis: u32,
-}
-impl Default for Instant {
-    fn default() -> Self {
-        Self { millis: Default::default() }
-    }
-}
-impl Instant {
-    fn zero() -> Self { Self { millis: 0, } }
-}
+use crate::{nodes::node::{Graph, Node, NodeWidget, Pin}, time::{Duration, Instant}};
 
 enum PinValue {
     None,
@@ -272,7 +235,12 @@ impl eframe::App for PixelLab {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
             // node editor
-            self.graph.show(ctx, ui);
+            let response = self.graph.show(ctx, ui);
+            response.context_menu(|ui| {
+                ui.button("float");
+                ui.button("def");
+            });
+    
 
             // output window
             // evaluate pixmap
