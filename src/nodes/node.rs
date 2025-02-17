@@ -1,4 +1,5 @@
-use egui::{Color32, Context, Id, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
+use eframe::egui_glow::painter;
+use egui::{Color32, Context, Id, Painter, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
 
 #[derive(Clone, Copy, Debug, Hash)]
 enum PinDirection {
@@ -76,6 +77,31 @@ pub struct Nodes<W: NodeWidget> {
     pub links: Vec<(PinId, PinId)>,
 }
 
+fn pins_ui(pins: &Vec<Pin>, direction: PinDirection, links: &mut Vec<(PinId, PinId)>, node_index: usize, node_rect: &Rect, ui: &egui::Ui, radius: f32) {
+    let painter = ui.painter();
+    for (pin_index, pin) in pins.iter().enumerate() {
+        let center = pin_position(node_rect, pin_index, direction);
+        painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
+        
+        let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
+        let pin_id = PinId { node_index, pin_index, direction};
+        let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
+        
+        response.dnd_set_drag_payload(pin_id);
+        if response.dragged() {
+            if let Some(pointer) = response.interact_pointer_pos() {
+                let mut lines = Vec::new();
+                lines.push(center);
+                lines.push(pointer);
+                painter.line(lines, Stroke::new(2.0, Color32::WHITE));
+            }
+        }
+        if let Some(link_from) = response.dnd_release_payload() {
+            links.push(pin_id.link(*link_from));
+        }
+    }
+}
+
 impl<W: NodeWidget> Nodes<W> {
     pub fn new() -> Self {
         Self { nodes: Vec::new(), links: Vec::new() }
@@ -133,53 +159,8 @@ impl<W: NodeWidget> Nodes<W> {
         // draw pins
         for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
             // draw input pins
-            let painter = ui.painter();
-            for (pin_index, pin) in node.widget.in_pins().iter().enumerate() {
-                let center = pin_position(&node_rect, pin_index, PinDirection::Input);
-                painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
-                
-                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
-                let pin_id = PinId { node_index, pin_index, direction: PinDirection::Input};
-                let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
-                
-                response.dnd_set_drag_payload(pin_id);
-                if response.dragged() {
-                    if let Some(pointer) = response.interact_pointer_pos() {
-                        let mut lines = Vec::new();
-                        lines.push(center);
-                        lines.push(pointer);
-                        painter.line(lines, Stroke::new(2.0, Color32::WHITE));
-                    }
-                }
-                if let Some(link_from) = response.dnd_release_payload() {
-                    self.links.push(pin_id.link(*link_from));
-                }
-            }
-            
-            // draw output pins
-            for (pin_index, pin) in node.widget.out_pins().iter().enumerate() {
-                let center = pin_position(node_rect, pin_index, PinDirection::Output);
-                let radius = 8.0;
-                painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
-                
-                let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
-                let pin_id = PinId { node_index, pin_index, direction: PinDirection::Output};
-                let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
-                
-                response.dnd_set_drag_payload(pin_id);
-                if response.dragged() {
-                    if let Some(pointer) = response.interact_pointer_pos() {
-                        let mut lines = Vec::new();
-                        lines.push(center);
-                        lines.push(pointer);
-                        painter.line(lines, Stroke::new(2.0, Color32::WHITE));
-                    }
-                }
-                if let Some(link_from) = response.dnd_release_payload() {
-                    self.links.push(pin_id.link(*link_from));
-                }
-                
-            }
+            pins_ui(&node.widget.in_pins(), PinDirection::Input, &mut self.links, node_index, &node_rect, ui, radius);
+            pins_ui(&node.widget.out_pins(), PinDirection::Output, &mut self.links, node_index, &node_rect, ui, radius);
         }
         response
     }
