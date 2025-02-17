@@ -268,7 +268,6 @@ impl eframe::App for PixelLab {
             // output window
             // evaluate pixmap
             if let PinValue::Pixmap(pixmap) = resolve(&self.nodes, 0, 0) {
-                println!("got pixmap {}x{}", pixmap.width(), pixmap.height());
                 self.output_texture.set(
                     ColorImage::from_rgba_premultiplied(
                         [pixmap.width() as usize, pixmap.height() as usize],

@@ -68,12 +68,11 @@ fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 
 pub struct Nodes<W: NodeWidget> {
     pub nodes: Vec<Node<W>>,
     pub links: Vec<(PinId, PinId)>,
-    link_from: Option<PinId>, // holds link currently being connected, if any 
 }
 
 impl<W: NodeWidget> Nodes<W> {
     pub fn new() -> Self {
-        Self { nodes: Vec::new(), links: Vec::new(), link_from: None, }
+        Self { nodes: Vec::new(), links: Vec::new() }
     }
     pub fn show(&mut self, ctx: &Context, ui: &mut egui::Ui) -> egui::Response {
         let sense = Sense::drag();
@@ -136,8 +135,8 @@ impl<W: NodeWidget> Nodes<W> {
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 let pin_id = PinId { node_index, pin_index, direction: PinDirection::Input};
                 let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
-                if response.drag_started() {
-                    self.link_from = Some(pin_id);
+                if response.drag_started() { // TODO: is this if-statement needed?
+                    response.dnd_set_drag_payload(pin_id);
                 }
                 if response.dragged() {
                     if let Some(pointer) = response.interact_pointer_pos() {
@@ -147,17 +146,8 @@ impl<W: NodeWidget> Nodes<W> {
                         painter.line(lines, Stroke::new(2.0, Color32::WHITE));
                     }
                 }
-                if response.drag_stopped() {
-                    if let Some(pointer_pos) = response.interact_pointer_pos() {
-                        // check if dropped into any of the output nodes
-                        for (node_index, pin_index, pin_rect) in &output_pins {
-                            println!("{} {}", pin_rect, pointer_pos);
-                            if pin_rect.contains(pointer_pos) {
-                                self.links.push((PinId { node_index: *node_index, pin_index: *pin_index, direction: PinDirection::Output}, self.link_from.unwrap()));
-                            }
-                        }
-                    }
-                    self.link_from = None;
+                if let Some(link_from) = response.dnd_release_payload() {
+                    self.links.push((*link_from, pin_id));
                 }
             }
             
@@ -171,7 +161,7 @@ impl<W: NodeWidget> Nodes<W> {
                 let pin_id = PinId { node_index, pin_index, direction: PinDirection::Output};
                 let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
                 if response.drag_started() {
-                    self.link_from = Some(pin_id);
+                    response.dnd_set_drag_payload(pin_id);
                 }
                 if response.dragged() {
                     if let Some(pointer) = response.interact_pointer_pos() {
@@ -181,17 +171,10 @@ impl<W: NodeWidget> Nodes<W> {
                         painter.line(lines, Stroke::new(2.0, Color32::WHITE));
                     }
                 }
-                if response.drag_stopped() {
-                    if let Some(pointer_pos) = response.interact_pointer_pos() {
-                        // check if dropped into any of the input nodes
-                        for (node_index, pin_index, pin_rect) in &input_pins {
-                            if pin_rect.contains(pointer_pos) {
-                                self.links.push((self.link_from.unwrap(), PinId { node_index: *node_index, pin_index: *pin_index, direction: PinDirection::Input}));
-                            }
-                        }
-                    }
-                    self.link_from = None;
+                if let Some(link_from) = response.dnd_release_payload() {
+                    self.links.push((pin_id, *link_from));
                 }
+                
             }
         }
         response
