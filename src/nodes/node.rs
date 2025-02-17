@@ -72,7 +72,7 @@ fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 
     Pos2::new(x, y)
 }
 
-pub struct Nodes<W: NodeWidget> {
+pub struct Graph<W: NodeWidget> {
     pub nodes: Vec<Node<W>>,
     pub links: Vec<(PinId, PinId)>,
 }
@@ -102,7 +102,7 @@ fn pins_ui(pins: &Vec<Pin>, direction: PinDirection, links: &mut Vec<(PinId, Pin
     }
 }
 
-impl<W: NodeWidget> Nodes<W> {
+impl<W: NodeWidget> Graph<W> {
     pub fn new() -> Self {
         Self { nodes: Vec::new(), links: Vec::new() }
     }

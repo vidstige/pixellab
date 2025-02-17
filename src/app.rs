@@ -3,7 +3,7 @@ use std::{fmt, iter::Sum, ops::Add, sync::Arc};
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use tiny_skia::{Color, Pixmap};
 
-use crate::nodes::node::{Node, NodeWidget, Nodes, Pin};
+use crate::nodes::node::{Graph, Node, NodeWidget, Pin};
 
 // time stuff
 struct Duration {
@@ -132,7 +132,7 @@ pub struct PixelLab {
     video_settings: VideoSettings,
     output_texture: TextureHandle,
     timeline: Timeline,
-    nodes: Nodes<NodeType>,
+    graph: Graph<NodeType>,
 }
 
 impl PixelLab {
@@ -157,12 +157,12 @@ impl PixelLab {
             video_settings: VideoSettings { resolution, },
             output_texture,
             timeline: Timeline::new(fps),
-            nodes: Nodes::new(),
+            graph: Graph::new(),
         };
 
-        app.nodes.nodes.push(Node::new(NodeType::Output));
-        app.nodes.nodes.push(Node::new(NodeType::Color(Color32::GRAY)));
-        app.nodes.nodes.push(Node::new(NodeType::Fill));
+        app.graph.nodes.push(Node::new(NodeType::Output));
+        app.graph.nodes.push(Node::new(NodeType::Color(Color32::GRAY)));
+        app.graph.nodes.push(Node::new(NodeType::Fill));
 
         // add some stuff on the timeline
         app.timeline.blocks.push(Duration::from_secs(3.0));
@@ -175,7 +175,7 @@ impl PixelLab {
 
 
 // runs the pipeline
-fn resolve(nodes: &Nodes<NodeType>, node_index: usize, pin_index: usize) -> PinValue {
+fn resolve(nodes: &Graph<NodeType>, node_index: usize, pin_index: usize) -> PinValue {
     // 1. collect all input pins
     let input_pins = nodes.inputs_for(node_index);
     // 2. resolve respective output pins
@@ -263,11 +263,11 @@ impl eframe::App for PixelLab {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
             // node editor
-            self.nodes.show(ctx, ui);
+            self.graph.show(ctx, ui);
 
             // output window
             // evaluate pixmap
-            if let PinValue::Pixmap(pixmap) = resolve(&self.nodes, 0, 0) {
+            if let PinValue::Pixmap(pixmap) = resolve(&self.graph, 0, 0) {
                 self.output_texture.set(
                     ColorImage::from_rgba_premultiplied(
                         [pixmap.width() as usize, pixmap.height() as usize],
