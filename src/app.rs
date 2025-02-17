@@ -84,6 +84,22 @@ impl NodeType {
 }
 
 impl NodeWidget for NodeType {
+    fn in_pins(&self) -> Vec<Pin> {
+        match self {
+            NodeType::Fill => [Pin::new()].into(),
+            NodeType::Output => [Pin::new()].into(),
+            _ => Vec::new(),
+        }
+    }
+    fn out_pins(&self) -> Vec<Pin> {
+        match self {
+            NodeType::Float(_) => [Pin::new()].into(),
+            NodeType::String(_) => [Pin::new()].into(),
+            NodeType::Color(_) => [Pin::new()].into(),
+            NodeType::Fill => [Pin::new()].into(),
+            NodeType::Output => Vec::new(),
+        }
+    }
     fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
             NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
@@ -133,11 +149,11 @@ impl PixelLab {
         };
 
         let mut output = Node::new(NodeType::Output);
-        output.inputs.push(Pin::new());
+        //output.inputs.push(Pin::new());
         app.nodes.nodes.push(output);
 
         let mut node1 = Node::new(NodeType::Color(Color32::GRAY));
-        node1.outputs.push(Pin::new());
+        //node1.outputs.push(Pin::new());
         app.nodes.nodes.push(node1);
 
         // add some stuff on the timeline

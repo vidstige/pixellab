@@ -38,23 +38,20 @@ impl Pin {
 }
 
 pub trait NodeWidget {
+    fn in_pins(&self) -> Vec<Pin>;
+    fn out_pins(&self) -> Vec<Pin>;
     fn ui(&mut self, ui: &mut egui::Ui) -> Response;
 }
 
 #[derive(Debug)]
 pub struct Node<W: NodeWidget> {
     pub widget: W,
-    pub inputs: Vec<Pin>,
-    pub outputs: Vec<Pin>,
 }
 
 impl<W: NodeWidget> Node<W> {
     pub(crate) fn new(widget: W) -> Self {
         Self {
             widget,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            //rect: Rect::from_min_size(Pos2::new(10.0, 10.0), Vec2::new(100.0, 100.0)),
         }
     }
 }
@@ -116,12 +113,12 @@ impl<W: NodeWidget> Nodes<W> {
         let mut output_pins = Vec::new();
         let mut input_pins = Vec::new();
         for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
-            for (pin_index, pin) in node.outputs.iter().enumerate() {
+            for (pin_index, pin) in node.widget.out_pins().iter().enumerate() {
                 let center = pin_position(&node_rect, pin_index, PinDirection::Output);
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 output_pins.push((node_index, pin_index, pin_rect));
             }
-            for (pin_index, pin) in node.inputs.iter().enumerate() {
+            for (pin_index, pin) in node.widget.in_pins().iter().enumerate() {
                 let center = pin_position(&node_rect, pin_index, PinDirection::Input);
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 input_pins.push((node_index, pin_index, pin_rect));
@@ -132,7 +129,7 @@ impl<W: NodeWidget> Nodes<W> {
         for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
             // draw input pins
             let painter = ui.painter();
-            for (pin_index, pin) in node.inputs.iter().enumerate() {
+            for (pin_index, pin) in node.widget.in_pins().iter().enumerate() {
                 let center = pin_position(&node_rect, pin_index, PinDirection::Input);
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
                 
@@ -166,7 +163,7 @@ impl<W: NodeWidget> Nodes<W> {
             }
             
             // draw output pins
-            for (pin_index, pin) in node.outputs.iter().enumerate() {
+            for (pin_index, pin) in node.widget.out_pins().iter().enumerate() {
                 let center = pin_position(node_rect, pin_index, PinDirection::Output);
                 let radius = 8.0;
                 painter.circle_filled(center, radius, Color32::LIGHT_BLUE);
