@@ -118,6 +118,7 @@ impl PixelLab {
         //if let Some(storage) = cc.storage {
         //    return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         //}
+
         let fps = 30.0;
         let resolution = [320, 200];
         let output_texture = cc.egui_ctx.load_texture(
@@ -142,6 +143,9 @@ impl PixelLab {
         //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
 
         app
+    }
+    fn add_node(&mut self, node: NodeType) {
+        self.graph.nodes.push(Node::new(node));
     }
 }
 
@@ -203,7 +207,7 @@ impl Widget for &mut Timeline {
 impl eframe::App for PixelLab {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        //eframe::set_value(storage, eframe::APP_KEY, self);
+        //storage.set_string(eframe::APP_KEY, value);
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -237,8 +241,14 @@ impl eframe::App for PixelLab {
             // node editor
             let response = self.graph.show(ctx, ui);
             response.context_menu(|ui| {
-                ui.button("float");
-                ui.button("def");
+                if ui.button("float").clicked() {
+                    self.add_node(NodeType::Float(1.0));
+                }
+                if ui.button("color").clicked() {
+                    self.add_node(NodeType::Color(Color32::GRAY));
+                }
+                if ui.button("hex").clicked() {
+                }
             });
     
 
