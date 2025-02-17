@@ -112,6 +112,15 @@ impl NodeWidget for NodeType {
             NodeType::Output => Vec::new(),
         }
     }
+    fn title(&self) -> String {
+        match self {
+            NodeType::Float(_) => "float",
+            NodeType::String(_) => "text",
+            NodeType::Color(_) => "color",
+            NodeType::Fill => "fill",
+            NodeType::Output => "output",
+        }.into()
+    }
     fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
             NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
