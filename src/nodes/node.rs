@@ -2,7 +2,7 @@ use eframe::egui_glow::painter;
 use egui::{Color32, Context, Id, Painter, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
 
 #[derive(Clone, Copy, Debug, Hash)]
-enum PinDirection {
+pub enum PinDirection {
     Input,
     Output,
 }
@@ -20,7 +20,7 @@ impl PinDirection {
 pub struct PinId {
     pub node_index: usize,
     pub pin_index: usize,
-    direction: PinDirection,
+    pub direction: PinDirection,
 }
 impl PinId {
     fn id(&self, ui: &egui::Ui) -> Id {

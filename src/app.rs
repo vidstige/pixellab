@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
+use json::{object, JsonValue};
 use tiny_skia::{Color, Pixmap};
 
-use crate::{nodes::node::{Graph, Node, NodeWidget, Pin}, time::{Duration, Instant}};
+use crate::{nodes::node::{Graph, Node, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
 enum PinValue {
     None,
@@ -96,6 +97,56 @@ impl NodeWidget for NodeType {
     }
 }
 
+fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
+    let node_type_raw = raw["type"].as_str().unwrap();
+    match node_type_raw {
+        "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
+        "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
+        "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
+        "fill" => Some(NodeType::Fill),
+        "output" => Some(NodeType::Output),
+        _ => None
+    }
+}
+
+fn into_pinid(raw: &json::JsonValue, direction: PinDirection) -> PinId {
+    PinId {
+        node_index: raw["node"].as_usize().unwrap(),
+        pin_index: raw["pin"].as_usize().unwrap(),
+        direction,
+    }
+}
+fn into_link(raw: &json::JsonValue) -> Option<(PinId, PinId)> {
+    Some((into_pinid(&raw["from"], PinDirection::Output), into_pinid(&raw["to"], PinDirection::Input)))
+}
+
+// graph io
+fn load_graph(raw: &str) -> Result<Graph<NodeType>, json::Error> {
+    let root = json::parse(raw)?;
+    let nodes = root["nodes"].members().filter_map(|raw| into_node(&raw)).map(|nt| Node::new(nt)).collect();
+    let links = root["links"].members().filter_map(|raw| into_link(raw)).collect();
+    Ok(Graph { nodes, links})
+}
+
+fn from_nodetype(node_type: NodeType) -> json::JsonValue {
+    match node_type {
+        NodeType::Float(value) => json::object!{"type": "float", value: value},
+        NodeType::String(value) => json::object!{"type": "string", value: value},
+        NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
+        NodeType::Fill => json::object!{"type": "fill"},
+        NodeType::Output => json::object!{"type": "output"},
+    }
+}
+
+fn save_graph(graph: &Graph<NodeType>) -> Result<String, json::JsonError> {
+    let mut root = json::JsonValue::new_object();
+    root["nodes"] = JsonValue::new_array();
+    for node in &graph.nodes {
+        root["nodes"].push(from_nodetype(node.widget.clone()))?;
+    }
+    Ok(root.dump())
+}
+
 struct VideoSettings {
     resolution: [usize; 2],
 }
@@ -113,11 +164,15 @@ impl PixelLab {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
+        let mut graph = Graph::new();
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        //if let Some(storage) = cc.storage {
-        //    return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        //}
+        if let Some(storage) = cc.storage {
+            //return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            if let Some(raw) = storage.get_string("graph_json") {
+                graph = load_graph(&raw).unwrap();
+            }
+        }
 
         let fps = 30.0;
         let resolution = [320, 200];
@@ -130,12 +185,8 @@ impl PixelLab {
             video_settings: VideoSettings { resolution, },
             output_texture,
             timeline: Timeline::new(fps),
-            graph: Graph::new(),
+            graph,
         };
-
-        app.graph.nodes.push(Node::new(NodeType::Output));
-        app.graph.nodes.push(Node::new(NodeType::Color(Color32::GRAY)));
-        app.graph.nodes.push(Node::new(NodeType::Fill));
 
         // add some stuff on the timeline
         app.timeline.blocks.push(Duration::from_secs(3.0));
@@ -207,6 +258,11 @@ impl Widget for &mut Timeline {
 impl eframe::App for PixelLab {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        if let Ok(raw) = save_graph(&self.graph) {
+            storage.set_string("graph_json", raw);
+        } else {
+            println!("could not save graph");
+        }
         //storage.set_string(eframe::APP_KEY, value);
     }
 
