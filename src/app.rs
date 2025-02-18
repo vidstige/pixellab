@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use json::JsonValue;
-use tiny_skia::{Color, Pixmap};
+use tiny_skia::{Color, Paint, Pixmap};
 
-use crate::{nodes::node::{Graph, Node, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
+use crate::{hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, Node, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
+#[derive(Debug)]
 enum PinValue {
     None,
     Float(f32),
@@ -29,6 +30,9 @@ impl PinValue {
             None
         }
     }
+    fn f32(self) -> Option<f32> {
+        if let PinValue::Float(value) = self { Some(value) } else { None }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -36,6 +40,7 @@ enum NodeType {
     Float(f32),
     String(String),
     Color(Color32),
+    Hex,
     Fill,
     Output,
 }
@@ -48,6 +53,22 @@ impl NodeType {
             NodeType::Color(value) => PinValue::Color(Color::from_rgba8(
                 value.r(), value.g(), value.b(), value.a())
             ),
+            NodeType::Hex => {
+                // extract inputs
+                let mut pins = pin_values.into_iter();
+                let color = pins.next().unwrap_or(PinValue::None).color().unwrap_or(Color::TRANSPARENT);
+                let spacing = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(8.0);
+                let size = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(8.0);
+                
+                let mut pixmap = Pixmap::new(320, 200).unwrap();
+                let grid = HexGrid::new(spacing, size);
+                let mut paint = Paint::default();
+                paint.set_color(color);
+                paint.anti_alias = true;
+
+                draw_hex_grid(&mut pixmap, &paint, &grid);
+                PinValue::Pixmap(pixmap)
+            },
             NodeType::Fill => {
                 let color = pin_values.into_iter().next().unwrap_or(PinValue::None).color().unwrap_or(Color::TRANSPARENT);
                 let mut pixmap = Pixmap::new(320, 200).unwrap();
@@ -62,6 +83,7 @@ impl NodeType {
 impl NodeWidget for NodeType {
     fn in_pins(&self) -> Vec<Pin> {
         match self {
+            NodeType::Hex => [Pin::new(), Pin::new(), Pin::new()].into(),
             NodeType::Fill => [Pin::new()].into(),
             NodeType::Output => [Pin::new()].into(),
             _ => Vec::new(),
@@ -72,6 +94,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => [Pin::new()].into(),
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
+            NodeType::Hex => [Pin::new()].into(),
             NodeType::Fill => [Pin::new()].into(),
             NodeType::Output => Vec::new(),
         }
@@ -81,13 +104,14 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => "float",
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
+            NodeType::Hex => "hex",
             NodeType::Fill => "fill",
             NodeType::Output => "output",
         }.into()
     }
     fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
-            NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=10.0)),
+            NodeType::Float(value) => ui.add(egui::Slider::new(value, 2.0..=16.0)),
             NodeType::Color(value) => {
                 egui::color_picker::color_picker_color32(ui, value, egui::color_picker::Alpha::Opaque);
                 ui.response()
@@ -103,6 +127,7 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
+        "hex" => Some(NodeType::Hex),
         "fill" => Some(NodeType::Fill),
         "output" => Some(NodeType::Output),
         _ => None
@@ -133,6 +158,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::Float(value) => json::object!{"type": "float", value: value},
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
+        NodeType::Hex => json::object!{"type": "hex"},
         NodeType::Fill => json::object!{"type": "fill"},
         NodeType::Output => json::object!{"type": "output"},
     }
@@ -143,6 +169,16 @@ fn save_graph(graph: &Graph<NodeType>) -> Result<String, json::JsonError> {
     root["nodes"] = JsonValue::new_array();
     for node in &graph.nodes {
         root["nodes"].push(from_nodetype(node.widget.clone()))?;
+    }
+
+    root["links"] = JsonValue::new_array();
+    for (from, to) in &graph.links {
+        root["links"].push(
+            json::object!{
+                from: json::object!{node: from.node_index, pin: from.pin_index},
+                to: json::object!{node: to.node_index, pin: to.pin_index},
+            }
+        )?;
     }
     Ok(root.dump())
 }
@@ -170,6 +206,7 @@ impl PixelLab {
         if let Some(storage) = cc.storage {
             //return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
             if let Some(raw) = storage.get_string("graph_json") {
+                println!("{}", raw);
                 graph = load_graph(&raw).unwrap();
             }
         }
@@ -302,6 +339,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("color").clicked() {
                     self.add_node(NodeType::Color(Color32::GRAY));
+                }
+                if ui.button("hex").clicked() {
+                    self.add_node(NodeType::Hex);
                 }
                 if ui.button("fill").clicked() {
                     self.add_node(NodeType::Fill);

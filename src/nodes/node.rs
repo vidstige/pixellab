@@ -179,10 +179,12 @@ impl<W: NodeWidget> Graph<W> {
 
     // Finds all PinIds linking to the specified node_index
     pub fn inputs_for(&self, node_index: usize) -> Vec<PinId> {
-        self.links
+        let mut links: Vec<_> = self.links
             .iter()
-            .filter_map(|(from, to)| (to.node_index == node_index).then_some(*from))
-            .collect()
+            .filter(|(_, to)| (to.node_index == node_index))
+            .collect();
+        links.sort_by_key(|(_, to)| to.pin_index);
+        links.iter().map(|(from, _)| *from).collect()
     }
     
     fn remove_node<>(&mut self, index: usize) {
