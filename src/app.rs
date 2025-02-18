@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
-use json::{object, JsonValue};
+use json::JsonValue;
 use tiny_skia::{Color, Pixmap};
 
 use crate::{nodes::node::{Graph, Node, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
@@ -303,7 +303,8 @@ impl eframe::App for PixelLab {
                 if ui.button("color").clicked() {
                     self.add_node(NodeType::Color(Color32::GRAY));
                 }
-                if ui.button("hex").clicked() {
+                if ui.button("fill").clicked() {
+                    self.add_node(NodeType::Fill);
                 }
             });
     
