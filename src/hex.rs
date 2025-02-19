@@ -20,8 +20,8 @@ pub struct HexGrid {
     transform: Transform,
 }
 impl HexGrid {
-    pub fn new(spacing: f32, size: f32) -> Self {
-        Self { spacing, size, transform: Transform::identity() }
+    pub fn new(spacing: f32, size: f32, transform: Transform) -> Self {
+        Self { spacing, size, transform }
     }
     fn position(&self, q: i32, r: i32) -> Point {
         let x = self.spacing * 3.0_f32.sqrt() * (q as f32 + 0.5 * (r & 1) as f32);
