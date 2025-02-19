@@ -73,7 +73,7 @@ impl NodeType {
                 let transform = pins.next().unwrap_or(PinValue::None).transform().unwrap_or(Transform::identity());
                 
                 let mut pixmap = Pixmap::new(320, 200).unwrap();
-                let grid = HexGrid::new(spacing, size, transform);
+                let grid = HexGrid::new(spacing, size, transform.post_translate(160.0, 120.0));
                 let mut paint = Paint::default();
                 paint.set_color(color);
                 paint.anti_alias = true;
