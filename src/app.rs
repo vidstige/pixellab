@@ -36,6 +36,7 @@ impl PinValue {
 
 #[derive(Clone, Debug)]
 enum NodeType {
+    Time,
     Float(f32),
     String(String),
     Color(Color32),
@@ -46,8 +47,9 @@ enum NodeType {
 }
 
 impl NodeType {
-    fn evaluate(&self, pin_values: Vec<PinValue>, pin_index: usize) -> PinValue {
+    fn evaluate(&self, pin_values: Vec<PinValue>, pin_index: usize, t: f32) -> PinValue {
         match self {
+            NodeType::Time => PinValue::Float(t),
             NodeType::Float(value) => PinValue::Float(*value),
             NodeType::String(value) => PinValue::String(value.clone()),
             NodeType::Color(value) => PinValue::Color(Color::from_rgba8(
@@ -97,6 +99,7 @@ impl NodeWidget for NodeType {
     }
     fn out_pins(&self) -> Vec<Pin> {
         match self {
+            NodeType::Time => [Pin::new()].into(),
             NodeType::Float(_) => [Pin::new()].into(),
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
@@ -108,6 +111,7 @@ impl NodeWidget for NodeType {
     }
     fn title(&self) -> String {
         match self {
+            NodeType::Time => "time",
             NodeType::Float(_) => "float",
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
@@ -132,6 +136,7 @@ impl NodeWidget for NodeType {
 fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
     let node_type_raw = raw["type"].as_str().unwrap();
     match node_type_raw {
+        "time" => Some(NodeType::Time),
         "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
@@ -164,6 +169,7 @@ fn load_graph(raw: &str) -> Result<Graph<NodeType>, json::Error> {
 
 fn from_nodetype(node_type: NodeType) -> json::JsonValue {
     match node_type {
+        NodeType::Time => json::object!{"type": "time"},
         NodeType::Float(value) => json::object!{"type": "float", value: value},
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
@@ -249,16 +255,16 @@ impl PixelLab {
 
 
 // runs the pipeline
-fn resolve(nodes: &Graph<NodeType>, node_index: usize, pin_index: usize) -> PinValue {
+fn resolve(nodes: &Graph<NodeType>, node_index: usize, pin_index: usize, t: f32) -> PinValue {
     // 1. collect all input pins
     let input_pins = nodes.inputs_for(node_index);
     // 2. resolve respective output pins
     let input_values: Vec<_> = input_pins
         .iter()
-        .map(|pin_id| resolve(nodes, pin_id.node_index, pin_id.pin_index))
+        .map(|pin_id| resolve(nodes, pin_id.node_index, pin_id.pin_index, t))
         .collect();
     // 3. call this nodes callable
-    nodes.nodes[node_index].widget.evaluate(input_values, pin_index)
+    nodes.nodes[node_index].widget.evaluate(input_values, pin_index, t)
 }
 
 struct Timeline {
@@ -353,6 +359,9 @@ impl eframe::App for PixelLab {
                 if ui.button("rotate").clicked() {
                     self.add_node(NodeType::Rotate);
                 }
+                if ui.button("time").clicked() {
+                    self.add_node(NodeType::Time);
+                }
                 if ui.button("hex").clicked() {
                     self.add_node(NodeType::Hex);
                 }
@@ -364,7 +373,9 @@ impl eframe::App for PixelLab {
 
             // output window
             // evaluate pixmap
-            if let PinValue::Pixmap(pixmap) = resolve(&self.graph, 0, 0) {
+            // compute global time
+            let t = self.timeline.caret.millis as f32 / self.timeline.duration().as_millis() as f32;
+            if let PinValue::Pixmap(pixmap) = resolve(&self.graph, 0, 0, t) {
                 self.output_texture.set(
                     ColorImage::from_rgba_premultiplied(
                         [pixmap.width() as usize, pixmap.height() as usize],
