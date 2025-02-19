@@ -1,7 +1,6 @@
-use eframe::egui_glow::painter;
-use egui::{Color32, Context, Id, Painter, Pos2, Rect, Response, Sense, Stroke, Vec2, Widget};
+use egui::{Color32, Context, Id, Pos2, Rect, Response, Sense, Stroke, Vec2};
 
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq)]
 pub enum PinDirection {
     Input,
     Output,
@@ -16,7 +15,7 @@ impl PinDirection {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct PinId {
     pub node_index: usize,
     pub pin_index: usize,
@@ -78,6 +77,13 @@ pub struct Graph<W: NodeWidget> {
     pub links: Vec<(PinId, PinId)>,
 }
 
+fn disconnect_pin(links: &mut Vec<(PinId, PinId)>, pin_id: &PinId) -> bool {
+    let before = links.len();
+    links.retain(|(from, to)| from != pin_id && to != pin_id);
+    let after = links.len();
+    after < before
+}
+
 fn pins_ui(pins: &Vec<Pin>, direction: PinDirection, links: &mut Vec<(PinId, PinId)>, node_index: usize, node_rect: &Rect, ui: &egui::Ui, radius: f32) {
     let painter = ui.painter();
     for (pin_index, pin) in pins.iter().enumerate() {
@@ -88,7 +94,13 @@ fn pins_ui(pins: &Vec<Pin>, direction: PinDirection, links: &mut Vec<(PinId, Pin
         let pin_id = PinId { node_index, pin_index, direction};
         let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
         
-        response.dnd_set_drag_payload(pin_id);
+        if response.drag_started() {
+            // remove pin if it exists
+            if !disconnect_pin(links, &pin_id) {
+                response.dnd_set_drag_payload(pin_id);
+            }
+        }
+
         if response.dragged() {
             if let Some(pointer) = response.interact_pointer_pos() {
                 let mut lines = Vec::new();
