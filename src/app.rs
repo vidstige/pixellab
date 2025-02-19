@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{f32::consts::TAU, sync::Arc};
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use json::JsonValue;
@@ -40,6 +40,7 @@ enum NodeType {
     Float(f32),
     String(String),
     Color(Color32),
+    Revolution,
     Rotate,
     Hex,
     Fill,
@@ -55,9 +56,13 @@ impl NodeType {
             NodeType::Color(value) => PinValue::Color(Color::from_rgba8(
                 value.r(), value.g(), value.b(), value.a())
             ),
+            NodeType::Revolution => {
+                let value = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
+                PinValue::Float(TAU * value)
+            }
             NodeType::Rotate => {
                 let angle = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
-                PinValue::Transform(Transform::post_rotate(&Transform::identity(), angle))
+                PinValue::Transform(Transform::post_rotate(&Transform::identity(), angle.to_degrees()))
             },
             NodeType::Hex => {
                 // extract inputs
@@ -90,6 +95,7 @@ impl NodeType {
 impl NodeWidget for NodeType {
     fn in_pins(&self) -> Vec<Pin> {
         match self {
+            NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Hex => [Pin::new(), Pin::new(), Pin::new(), Pin::new()].into(),
             NodeType::Fill => [Pin::new()].into(),
@@ -103,6 +109,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => [Pin::new()].into(),
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
+            NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Hex => [Pin::new()].into(),
             NodeType::Fill => [Pin::new()].into(),
@@ -115,6 +122,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => "float",
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
+            NodeType::Revolution => "revolution",
             NodeType::Rotate => "rotate",
             NodeType::Hex => "hex",
             NodeType::Fill => "fill",
@@ -140,6 +148,7 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
+        "revolution" => Some(NodeType::Revolution),
         "rotate" => Some(NodeType::Rotate),
         "hex" => Some(NodeType::Hex),
         "fill" => Some(NodeType::Fill),
@@ -173,6 +182,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::Float(value) => json::object!{"type": "float", value: value},
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
+        NodeType::Revolution => json::object!{"type": "revolution"},
         NodeType::Rotate => json::object!{"type": "rotate"},
         NodeType::Hex => json::object!{"type": "hex"},
         NodeType::Fill => json::object!{"type": "fill"},
@@ -358,6 +368,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("rotate").clicked() {
                     self.add_node(NodeType::Rotate);
+                }
+                if ui.button("revolution").clicked() {
+                    self.add_node(NodeType::Revolution);
                 }
                 if ui.button("time").clicked() {
                     self.add_node(NodeType::Time);
