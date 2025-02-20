@@ -1,4 +1,4 @@
-use std::{f32::consts::TAU, sync::Arc};
+use std::{f32::consts::TAU, path::PathBuf, sync::Arc};
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use json::JsonValue;
@@ -6,18 +6,12 @@ use tiny_skia::{Color, Paint, Pixmap, Point, Transform};
 
 use crate::{hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
-// represnts a field that can be evaluated a specific point, e.g. color field, scalar field, vector field
-trait Field2<T> {
-    fn at(&self, position: Point) -> T;
-}
-
 //#[derive(Debug)]
 enum PinValue {
     None,
     Float(f32),
     String(String),
     Color(Color),
-    ColorField(Box<dyn Field2<Color>>),
     Transform(Transform),
     Pixmap(Pixmap),
 }
@@ -46,6 +40,7 @@ enum NodeType {
     Float(f32),
     String(String),
     Color(Color32),
+    Pixmap(Box<PathBuf>),
     Revolution,
     Rotate,
     Hex,
@@ -62,6 +57,7 @@ impl NodeType {
             NodeType::Color(value) => PinValue::Color(Color::from_rgba8(
                 value.r(), value.g(), value.b(), value.a())
             ),
+            NodeType::Pixmap(path) => PinValue::Pixmap(Pixmap::load_png(path.as_path()).unwrap()),
             NodeType::Revolution => {
                 let value = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
                 PinValue::Float(TAU * value)
@@ -115,6 +111,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => [Pin::new()].into(),
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
+            NodeType::Pixmap(_) => [Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Hex => [Pin::new()].into(),
@@ -128,6 +125,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => "float",
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
+            NodeType::Pixmap(_) => "pixmap",
             NodeType::Revolution => "revolution",
             NodeType::Rotate => "rotate",
             NodeType::Hex => "hex",
@@ -142,6 +140,12 @@ impl NodeWidget for NodeType {
                 egui::color_picker::color_picker_color32(ui, value, egui::color_picker::Alpha::Opaque);
                 ui.response()
             },
+            NodeType::Pixmap(path) => {
+                let mut text = path.to_str().unwrap_or("").to_string();
+                let response = ui.text_edit_singleline(&mut text);
+                *path = Box::new(text.into());
+                response
+            },
             _ => ui.response(),
         }
     }
@@ -154,6 +158,7 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
+        "pixmap" => raw["path"].as_str().map(|value| NodeType::Pixmap(Box::new(value.into()))),
         "revolution" => Some(NodeType::Revolution),
         "rotate" => Some(NodeType::Rotate),
         "hex" => Some(NodeType::Hex),
@@ -188,6 +193,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::Float(value) => json::object!{"type": "float", value: value},
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
+        NodeType::Pixmap(path) => json::object!{"type": "pixmap", path: path.to_str()},
         NodeType::Revolution => json::object!{"type": "revolution"},
         NodeType::Rotate => json::object!{"type": "rotate"},
         NodeType::Hex => json::object!{"type": "hex"},
@@ -383,6 +389,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("hex").clicked() {
                     self.add_node(NodeType::Hex);
+                }
+                if ui.button("pixmap").clicked() {
+                    self.add_node(NodeType::Pixmap(Box::new(PathBuf::new())));
                 }
                 if ui.button("fill").clicked() {
                     self.add_node(NodeType::Fill);
