@@ -4,7 +4,7 @@ use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, Texture
 use json::JsonValue;
 use tiny_skia::{Color, Paint, Pixmap, Transform};
 
-use crate::{hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, Node, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
+use crate::{hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
 #[derive(Debug)]
 enum PinValue {
@@ -171,7 +171,7 @@ fn into_link(raw: &json::JsonValue) -> Option<(PinId, PinId)> {
 // graph io
 fn load_graph(raw: &str) -> Result<Graph<NodeType>, json::Error> {
     let root = json::parse(raw)?;
-    let nodes = root["nodes"].members().filter_map(|raw| into_node(&raw)).map(|nt| Node::new(nt)).collect();
+    let nodes = root["nodes"].members().filter_map(|raw| into_node(&raw)).collect();
     let links = root["links"].members().filter_map(|raw| into_link(raw)).collect();
     Ok(Graph { nodes, links})
 }
@@ -194,7 +194,7 @@ fn save_graph(graph: &Graph<NodeType>) -> Result<String, json::JsonError> {
     let mut root = json::JsonValue::new_object();
     root["nodes"] = JsonValue::new_array();
     for node in &graph.nodes {
-        root["nodes"].push(from_nodetype(node.widget.clone()))?;
+        root["nodes"].push(from_nodetype(node.clone()))?;
     }
 
     root["links"] = JsonValue::new_array();
@@ -259,7 +259,7 @@ impl PixelLab {
         app
     }
     fn add_node(&mut self, node: NodeType) {
-        self.graph.nodes.push(Node::new(node));
+        self.graph.nodes.push(node);
     }
 }
 
@@ -274,7 +274,7 @@ fn resolve(nodes: &Graph<NodeType>, node_index: usize, pin_index: usize, t: f32)
         .map(|pin_id| resolve(nodes, pin_id.node_index, pin_id.pin_index, t))
         .collect();
     // 3. call this nodes callable
-    nodes.nodes[node_index].widget.evaluate(input_values, pin_index, t)
+    nodes.nodes[node_index].evaluate(input_values, pin_index, t)
 }
 
 struct Timeline {

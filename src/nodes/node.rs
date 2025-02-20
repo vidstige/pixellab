@@ -50,19 +50,6 @@ pub trait NodeWidget {
     fn ui(&mut self, ui: &mut egui::Ui) -> Response;
 }
 
-#[derive(Debug)]
-pub struct Node<W: NodeWidget> {
-    pub widget: W,
-}
-
-impl<W: NodeWidget> Node<W> {
-    pub(crate) fn new(widget: W) -> Self {
-        Self {
-            widget,
-        }
-    }
-}
-
 fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 {
     let x = match direction {
         PinDirection::Input => rect.left(),
@@ -73,7 +60,7 @@ fn pin_position(rect: &Rect, pin_index: usize, direction: PinDirection) -> Pos2 
 }
 
 pub struct Graph<W: NodeWidget> {
-    pub nodes: Vec<Node<W>>,
+    pub nodes: Vec<W>,
     pub links: Vec<(PinId, PinId)>,
 }
 
@@ -127,14 +114,14 @@ impl<W: NodeWidget> Graph<W> {
         let mut closed_indices = Vec::new();
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
             let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
-            let window = egui::Window::new(node.widget.title())
+            let window = egui::Window::new(node.title())
                 .id(Id::new(node_index))
                 .frame(frame)
                 .resizable(false);
             let mut is_open = true;
             let maybe_response = window.open(&mut is_open).show(ctx, |ui| {
                 ui.set_min_size(Vec2::new(48.0, 64.0));
-                node.widget.ui(ui);
+                node.ui(ui);
             });
             if is_open {
                 let node_rect = maybe_response.unwrap().response.rect;
@@ -168,12 +155,12 @@ impl<W: NodeWidget> Graph<W> {
         let mut output_pins = Vec::new();
         let mut input_pins = Vec::new();
         for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
-            for (pin_index, pin) in node.widget.out_pins().iter().enumerate() {
+            for (pin_index, pin) in node.out_pins().iter().enumerate() {
                 let center = pin_position(&node_rect, pin_index, PinDirection::Output);
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 output_pins.push((node_index, pin_index, pin_rect));
             }
-            for (pin_index, pin) in node.widget.in_pins().iter().enumerate() {
+            for (pin_index, pin) in node.in_pins().iter().enumerate() {
                 let center = pin_position(&node_rect, pin_index, PinDirection::Input);
                 let pin_rect = Rect::from_center_size(center, Vec2::splat(2.0 * radius));
                 input_pins.push((node_index, pin_index, pin_rect));
@@ -183,8 +170,8 @@ impl<W: NodeWidget> Graph<W> {
         // draw pins
         for (node_index, (node, node_rect)) in self.nodes.iter().zip(node_rects.iter()).enumerate() {
             // draw input pins
-            pins_ui(&node.widget.in_pins(), PinDirection::Input, &mut self.links, node_index, &node_rect, ui, radius);
-            pins_ui(&node.widget.out_pins(), PinDirection::Output, &mut self.links, node_index, &node_rect, ui, radius);
+            pins_ui(&node.in_pins(), PinDirection::Input, &mut self.links, node_index, &node_rect, ui, radius);
+            pins_ui(&node.out_pins(), PinDirection::Output, &mut self.links, node_index, &node_rect, ui, radius);
         }
         response
     }
