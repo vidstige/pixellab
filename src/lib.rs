@@ -3,6 +3,8 @@
 mod app;
 pub use app::PixelLab;
 
+mod fields;
+
 mod hex;
 
 mod time;

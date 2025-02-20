@@ -1,4 +1,6 @@
-use tiny_skia::{FillRule, Paint, Path, PathBuilder, Pixmap, Point, Rect, Transform};
+use tiny_skia::{Color, FillRule, Paint, Path, PathBuilder, Pixmap, Point, Rect, Transform};
+
+use crate::fields::Field2;
 
 fn hex_tile(size: f32) -> Path {
     // pointy top
@@ -34,7 +36,11 @@ fn bounds_for(pixmap: &Pixmap) -> Rect {
     Rect::from_xywh(0.0, 0.0, pixmap.width() as f32, pixmap.height() as f32).unwrap()
 }
 
-pub fn draw_hex_grid<'a>(pixmap: &mut Pixmap, paint: &Paint<'a>, grid: &HexGrid) {
+pub fn draw_hex_grid<'a>(
+    pixmap: &mut Pixmap,
+    grid: &HexGrid,
+    color_field: &dyn Field2<Color>
+) {
     let screen = bounds_for(pixmap);
     let rect = screen.transform(grid.transform.invert().unwrap()).unwrap();
     let hex_tile = hex_tile(grid.size);
@@ -43,6 +49,9 @@ pub fn draw_hex_grid<'a>(pixmap: &mut Pixmap, paint: &Paint<'a>, grid: &HexGrid)
     for r in y0..y1 {
         for q in x0..x1 {
             let p = grid.position(q, r);
+            let color = color_field.at(p);
+            let mut paint = Paint::default();
+            paint.set_color(color);
             pixmap.fill_path(
                 &hex_tile,
                 &paint,

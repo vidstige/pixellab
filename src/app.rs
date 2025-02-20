@@ -4,7 +4,7 @@ use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, Texture
 use json::JsonValue;
 use tiny_skia::{Color, Paint, Pixmap, Point, Transform};
 
-use crate::{hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
+use crate::{fields::ConstantField, hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
 //#[derive(Debug)]
 enum PinValue {
@@ -76,11 +76,10 @@ impl NodeType {
                 
                 let mut pixmap = Pixmap::new(320, 200).unwrap();
                 let grid = HexGrid::new(spacing, size, transform.post_translate(160.0, 120.0));
-                let mut paint = Paint::default();
-                paint.set_color(color);
-                paint.anti_alias = true;
+                
+                let color_field = ConstantField::new(color);
 
-                draw_hex_grid(&mut pixmap, &paint, &grid);
+                draw_hex_grid(&mut pixmap, &grid, &color_field);
                 PinValue::Pixmap(pixmap)
             },
             NodeType::Fill => {
