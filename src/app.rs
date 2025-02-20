@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, path::PathBuf, sync::Arc};
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use json::JsonValue;
-use tiny_skia::{Color, Paint, Pixmap, Point, Transform};
+use tiny_skia::{Color, Pixmap, Transform};
 
 use crate::{fields::ConstantField, hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
@@ -40,7 +40,7 @@ enum NodeType {
     Float(f32),
     String(String),
     Color(Color32),
-    Pixmap(Box<PathBuf>),
+    Pixmap(PathBuf),
     Revolution,
     Rotate,
     Hex,
@@ -142,7 +142,7 @@ impl NodeWidget for NodeType {
             NodeType::Pixmap(path) => {
                 let mut text = path.to_str().unwrap_or("").to_string();
                 let response = ui.text_edit_singleline(&mut text);
-                *path = Box::new(text.into());
+                *path = text.into();
                 response
             },
             _ => ui.response(),
@@ -157,7 +157,7 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
-        "pixmap" => raw["path"].as_str().map(|value| NodeType::Pixmap(Box::new(value.into()))),
+        "pixmap" => raw["path"].as_str().map(|value| NodeType::Pixmap(value.into())),
         "revolution" => Some(NodeType::Revolution),
         "rotate" => Some(NodeType::Rotate),
         "hex" => Some(NodeType::Hex),
@@ -390,7 +390,7 @@ impl eframe::App for PixelLab {
                     self.add_node(NodeType::Hex);
                 }
                 if ui.button("pixmap").clicked() {
-                    self.add_node(NodeType::Pixmap(Box::new(PathBuf::new())));
+                    self.add_node(NodeType::Pixmap(PathBuf::new()));
                 }
                 if ui.button("fill").clicked() {
                     self.add_node(NodeType::Fill);
