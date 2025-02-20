@@ -2,16 +2,22 @@ use std::{f32::consts::TAU, sync::Arc};
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use json::JsonValue;
-use tiny_skia::{Color, Paint, Pixmap, Transform};
+use tiny_skia::{Color, Paint, Pixmap, Point, Transform};
 
 use crate::{hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
 
-#[derive(Debug)]
+// represnts a field that can be evaluated a specific point, e.g. color field, scalar field, vector field
+trait Field2<T> {
+    fn at(&self, position: Point) -> T;
+}
+
+//#[derive(Debug)]
 enum PinValue {
     None,
     Float(f32),
     String(String),
     Color(Color),
+    ColorField(Box<dyn Field2<Color>>),
     Transform(Transform),
     Pixmap(Pixmap),
 }
