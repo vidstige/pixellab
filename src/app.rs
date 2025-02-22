@@ -243,7 +243,7 @@ struct VideoSettings {
 pub struct PixelLab {
     video_settings: VideoSettings,
     output_texture: TextureHandle,
-    timeline: Timeline,
+    timeline: Timeline<()>,
     graph: Graph<NodeType>,
 }
 
@@ -279,7 +279,7 @@ impl PixelLab {
         };
 
         // add some stuff on the timeline
-        app.timeline.blocks.push(Duration::from_secs(3.0));
+        app.timeline.blocks.push((Duration::from_secs(3.0), ()));
         //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
         //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
 
@@ -304,22 +304,22 @@ fn resolve(nodes: &Graph<NodeType>, node_index: usize, pin_index: usize, t: f32)
     nodes.nodes[node_index].evaluate(input_values, pin_index, t)
 }
 
-struct Timeline {
+struct Timeline<T> {
     caret: Instant,
     fps: f32,
-    blocks: Vec<Duration>,
+    blocks: Vec<(Duration, T)>,
 }
 
-impl Timeline {
+impl<T> Timeline<T> {
     fn new(fps: f32) -> Self {
         Self { caret: Instant::zero(), fps, blocks: Vec::new(), }
     }
     fn duration(&self) -> Duration {
-        self.blocks.iter().sum()
+        self.blocks.iter().map(|(duration, _)| duration).sum()
     }
 }
 
-impl Widget for &mut Timeline {
+impl<T> Widget for &mut Timeline<T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let desired_size = Vec2::new(ui.available_width(), 100.0);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::drag());
