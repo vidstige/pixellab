@@ -33,5 +33,9 @@ impl Default for Instant {
     }
 }
 impl Instant {
-    pub fn zero() -> Self { Self { millis: 0, } }
+    pub(crate) fn zero() -> Self { Self { millis: 0, } }
+    
+    pub(crate) fn after(&self, duration: &Duration) -> Instant {
+        Self { millis: self.millis + duration.millis, }
+    }
 }
