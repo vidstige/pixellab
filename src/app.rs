@@ -2,9 +2,19 @@ use std::{f32::consts::TAU, path::PathBuf, sync::Arc};
 
 use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
 use json::JsonValue;
-use tiny_skia::{Color, Pixmap, Transform};
+use tiny_skia::{Color, Pixmap, PremultipliedColorU8, Transform};
 
-use crate::{fields::ConstantField, hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
+use crate::{fields::{ConstantField, Field2}, hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
+
+impl Field2<Color> for Pixmap {
+    fn at(&self, position: tiny_skia::Point) -> Color {
+        let x = position.x as u32;
+        let y = position.y as u32;
+        
+        let color = self.pixel(x, y).unwrap_or(PremultipliedColorU8::TRANSPARENT).demultiply();
+        Color::from_rgba8(color.red(), color.green(), color.blue(), color.alpha())
+    }
+}
 
 //#[derive(Debug)]
 enum PinValue {
@@ -21,6 +31,14 @@ impl PinValue {
             pixmap
         } else {
             panic!("Unexpected pin value")
+        }
+    }
+    // try to convert value into a color field
+    fn as_color_field(self) -> Option<Box<dyn Field2<Color>>> {
+        match self {
+            PinValue::Color(color) => Some(Box::new(ConstantField::new(color))),
+            PinValue::Pixmap(pixmap) => Some(Box::new(pixmap)),
+            _ => None,
         }
     }
     fn color(self) -> Option<Color> {
@@ -69,7 +87,7 @@ impl NodeType {
             NodeType::Hex => {
                 // extract inputs
                 let mut pins = pin_values.into_iter();
-                let color = pins.next().unwrap_or(PinValue::None).color().unwrap_or(Color::TRANSPARENT);
+                let color = pins.next().unwrap_or(PinValue::None).as_color_field().unwrap_or(Box::new(ConstantField::new(Color::TRANSPARENT)));
                 let spacing = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(8.0);
                 let size = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(8.0);
                 let transform = pins.next().unwrap_or(PinValue::None).transform().unwrap_or(Transform::identity());
@@ -77,9 +95,7 @@ impl NodeType {
                 let mut pixmap = Pixmap::new(320, 200).unwrap();
                 let grid = HexGrid::new(spacing, size, transform.post_translate(160.0, 120.0));
                 
-                let color_field = ConstantField::new(color);
-
-                draw_hex_grid(&mut pixmap, &grid, &color_field);
+                draw_hex_grid(&mut pixmap, &grid, color.as_ref());
                 PinValue::Pixmap(pixmap)
             },
             NodeType::Fill => {
