@@ -8,8 +8,8 @@ use crate::{fields::{ConstantField, Field2}, hex::{draw_hex_grid, HexGrid}, node
 
 impl Field2<Color> for Pixmap {
     fn at(&self, position: tiny_skia::Point) -> Color {
-        let x = position.x as u32;
-        let y = position.y as u32;
+        let x = (position.x + 0.5 * self.width() as f32) as u32;
+        let y = (position.y + 0.5 * self.height() as f32) as u32;
         
         let color = self.pixel(x, y).unwrap_or(PremultipliedColorU8::TRANSPARENT).demultiply();
         Color::from_rgba8(color.red(), color.green(), color.blue(), color.alpha())
