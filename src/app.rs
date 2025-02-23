@@ -62,7 +62,6 @@ enum NodeType {
     Revolution,
     Rotate,
     Hex,
-    Fill,
     Output,
 }
 
@@ -98,12 +97,6 @@ impl NodeType {
                 draw_hex_grid(&mut pixmap, &grid, color.as_ref());
                 PinValue::Pixmap(pixmap)
             },
-            NodeType::Fill => {
-                let color = pin_values.into_iter().next().unwrap_or(PinValue::None).color().unwrap_or(Color::TRANSPARENT);
-                let mut pixmap = Pixmap::new(320, 200).unwrap();
-                pixmap.fill(color);
-                PinValue::Pixmap(pixmap)
-            }
             NodeType::Output => pin_values.into_iter().next().unwrap_or(PinValue::None),
         }
     }
@@ -115,7 +108,6 @@ impl NodeWidget for NodeType {
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Hex => [Pin::new(), Pin::new(), Pin::new(), Pin::new()].into(),
-            NodeType::Fill => [Pin::new()].into(),
             NodeType::Output => [Pin::new()].into(),
             _ => Vec::new(),
         }
@@ -130,7 +122,6 @@ impl NodeWidget for NodeType {
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Hex => [Pin::new()].into(),
-            NodeType::Fill => [Pin::new()].into(),
             NodeType::Output => Vec::new(),
         }
     }
@@ -144,7 +135,6 @@ impl NodeWidget for NodeType {
             NodeType::Revolution => "revolution",
             NodeType::Rotate => "rotate",
             NodeType::Hex => "hex",
-            NodeType::Fill => "fill",
             NodeType::Output => "output",
         }.into()
     }
@@ -177,7 +167,6 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "revolution" => Some(NodeType::Revolution),
         "rotate" => Some(NodeType::Rotate),
         "hex" => Some(NodeType::Hex),
-        "fill" => Some(NodeType::Fill),
         "output" => Some(NodeType::Output),
         _ => None
     }
@@ -211,7 +200,6 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::Revolution => json::object!{"type": "revolution"},
         NodeType::Rotate => json::object!{"type": "rotate"},
         NodeType::Hex => json::object!{"type": "hex"},
-        NodeType::Fill => json::object!{"type": "fill"},
         NodeType::Output => json::object!{"type": "output"},
     }
 }
@@ -496,9 +484,6 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("pixmap").clicked() {
                     self.add_node(NodeType::Pixmap(PathBuf::new()));
-                }
-                if ui.button("fill").clicked() {
-                    self.add_node(NodeType::Fill);
                 }
             });
     
