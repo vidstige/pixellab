@@ -28,6 +28,16 @@ impl Field2<Color> for TransformedColorField {
     }
 }
 
+struct Lerp<T> {
+    a: T,
+    b: T,
+}
+impl Lerp<f32> {
+    fn eval(&self, t: f32) -> f32 {
+        self.a * (1.0 - t) + self.b * t
+    }
+}
+
 //#[derive(Debug)]
 enum PinValue {
     None,
@@ -72,6 +82,7 @@ enum NodeType {
     Float(f32),
     String(String),
     Color(Color32),
+    Lerp,
     Pixmap(PathBuf),
     TransformColorField,
     Revolution,
@@ -91,6 +102,13 @@ impl NodeType {
             NodeType::Color(value) => PinValue::Color(Color::from_rgba8(
                 value.r(), value.g(), value.b(), value.a())
             ),
+            NodeType::Lerp => {
+                // TODO: Handle colors, positions, etc
+                let a = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
+                let b = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(1.0);
+                let t = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
+                PinValue::Float(Lerp {a, b}.eval(t))
+            },
             NodeType::Pixmap(path) => PinValue::Pixmap(Pixmap::load_png(path.as_path()).unwrap()),
             NodeType::TransformColorField => {
                 let color = pins.next().unwrap_or(PinValue::None).as_color_field().unwrap_or(Box::new(ConstantField::new(Color::TRANSPARENT)));
@@ -131,6 +149,7 @@ impl NodeType {
 impl NodeWidget for NodeType {
     fn in_pins(&self) -> Vec<Pin> {
         match self {
+            NodeType::Lerp => [Pin::new(), Pin::new(), Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Scale => [Pin::new(), Pin::new()].into(),
@@ -146,6 +165,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => [Pin::new()].into(),
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
+            NodeType::Lerp => [Pin::new()].into(),
             NodeType::Pixmap(_) => [Pin::new()].into(),
             NodeType::TransformColorField => [Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
@@ -161,6 +181,7 @@ impl NodeWidget for NodeType {
             NodeType::Float(_) => "float",
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
+            NodeType::Lerp => "lerp",
             NodeType::Pixmap(_) => "pixmap",
             NodeType::TransformColorField => "transform color field",
             NodeType::Revolution => "revolution",
@@ -195,6 +216,7 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "float" => raw["value"].as_f32().map(|value| NodeType::Float(value)),
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
+        "lerp" => Some(NodeType::Lerp),
         "pixmap" => raw["path"].as_str().map(|value| NodeType::Pixmap(value.into())),
         "transform-color-field" => Some(NodeType::TransformColorField),
         "revolution" => Some(NodeType::Revolution),
@@ -232,6 +254,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::Float(value) => json::object!{"type": "float", value: value},
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
+        NodeType::Lerp => json::object!{"type": "lerp"},
         NodeType::Pixmap(path) => json::object!{"type": "pixmap", path: path.to_str()},
         NodeType::TransformColorField => json::object!{"type": "transform-color-field" },
         NodeType::Revolution => json::object!{"type": "revolution"},
@@ -507,6 +530,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("color").clicked() {
                     self.add_node(NodeType::Color(Color32::GRAY));
+                }
+                if ui.button("lerp").clicked() {
+                    self.add_node(NodeType::Lerp);
                 }
                 if ui.button("rotate").clicked() {
                     self.add_node(NodeType::Rotate);
