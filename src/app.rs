@@ -1,6 +1,6 @@
 use std::{f32::consts::TAU, path::PathBuf, sync::Arc};
 
-use egui::{Color32, ColorImage, ImageData, Sense, Stroke, TextureHandle, TextureOptions, Vec2, Widget};
+use egui::{Color32, ColorImage, ImageData, Layout, Response, Sense, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget};
 use json::JsonValue;
 use tiny_skia::{Color, Pixmap, PremultipliedColorU8, Transform};
 
@@ -317,10 +317,7 @@ impl<T> Timeline<T> {
     fn duration(&self) -> Duration {
         self.blocks.iter().map(|(duration, _)| duration).sum()
     }
-}
-
-impl<T> Widget for &mut Timeline<T> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+    fn show_ticks(&mut self, ui: &mut Ui) -> Response {
         let desired_size = Vec2::new(ui.available_width(), 25.0);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::drag());
 
@@ -344,16 +341,19 @@ impl<T> Widget for &mut Timeline<T> {
         let x = rect.left() + self.caret.millis as f32 * rect.width() / total_duration.as_millis() as f32;
         painter.vline(x, rect.bottom_up_range(), Stroke::new(1.0, Color32::LIGHT_GRAY));
 
-        // draw blocks
-
-        for (duration, value) in &self.blocks {
-            let width = rect.width() * duration.as_millis() as f32 / total_duration.as_millis() as f32;
-            ui.group(|ui| {
-                ui.allocate_exact_size(Vec2::new(width, 25.0), Sense::empty());
-            });
-        }
-
         response
+    }
+}
+
+impl<T> Widget for &mut Timeline<T> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+            self.show_ticks(ui);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                ui.label("block1");
+                ui.label("block2");
+            });
+        }).response
     }
 }
 
