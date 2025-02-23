@@ -1,7 +1,7 @@
 use std::{iter::Sum, ops::Add};
 
 pub struct Duration {
-    millis: u32,
+    pub millis: u32,
 }
 impl Duration {
     pub fn from_secs(seconds: f32) -> Duration {

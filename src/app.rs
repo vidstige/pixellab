@@ -317,6 +317,17 @@ impl<T> Timeline<T> {
     fn duration(&self) -> Duration {
         self.blocks.iter().map(|(duration, _)| duration).sum()
     }
+    fn selected_mut(&mut self) -> Option<(&mut Duration, &mut T)> {
+        let mut start = Instant::zero();
+        for (duration, value) in &mut self.blocks {
+            let end = start.after(duration);
+            if self.caret.millis < end.millis {
+                return Some((duration, value));
+            }
+            start = end;
+        }
+        None
+    }
     fn show_ticks(&mut self, ui: &mut Ui) -> Response {
         let desired_size = Vec2::new(ui.available_width(), 25.0);
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::drag());
@@ -347,20 +358,27 @@ impl<T> Timeline<T> {
 
 impl<T> Widget for &mut Timeline<T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-            self.show_ticks(ui);
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                let height = 50.0;
-                let total_width = ui.available_width();
-                let total_duration = self.duration();
-                for (duration, _) in &self.blocks {
-                    let width = total_width * duration.as_millis() as f32 / total_duration.as_millis() as f32;
-                    ui.group(|ui| {
-                        ui.allocate_exact_size(Vec2::new(width, height), Sense::empty());
-                    });
-                }
-            });
-        }).response
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+            if let Some((duration, _)) = self.selected_mut() {
+                ui.add(egui::Slider::new(&mut duration.millis, 1..=5000));
+            }
+            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                self.show_ticks(ui);
+                // show blocks
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                    let height = 50.0;
+                    let total_width = ui.available_width();
+                    let total_duration = self.duration();
+                    for (duration, _) in &self.blocks {
+                        let width = total_width * duration.as_millis() as f32 / total_duration.as_millis() as f32;
+                        ui.group(|ui| {
+                            ui.allocate_exact_size(Vec2::new(width, height), Sense::empty());
+                        });
+                    }
+                });
+            })
+        })
+        .response
     }
 }
 
@@ -446,6 +464,7 @@ impl eframe::App for PixelLab {
                     TextureOptions::default(),
                 );
             }
+
             egui::Window::new("Output").show(ctx, |ui| {
                 ui.add(egui::Image::from_texture(&self.output_texture));
             });
