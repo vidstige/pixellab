@@ -82,8 +82,12 @@ fn pins_ui(pins: &Vec<Pin>, direction: PinDirection, links: &mut Vec<(PinId, Pin
         let response = ui.interact(pin_rect, pin_id.id(ui), Sense::drag());
         
         if response.drag_started() {
-            // remove pin if it exists
-            if !disconnect_pin(links, &pin_id) {
+            // disconnect if input  pin
+            if pin_id.direction == PinDirection::Input {
+                if !disconnect_pin(links, &pin_id) {
+                    response.dnd_set_drag_payload(pin_id);
+                }    
+            } else {
                 response.dnd_set_drag_payload(pin_id);
             }
         }
