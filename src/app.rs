@@ -16,6 +16,18 @@ impl Field2<Color> for Pixmap {
     }
 }
 
+struct TransformedColorField {
+    field: Box<dyn Field2<Color>>,
+    transform: Transform,
+}
+impl Field2<Color> for TransformedColorField {
+    fn at(&self, position: tiny_skia::Point) -> Color {
+        let mut p = position;
+        self.transform.map_point(&mut p);
+        self.field.at(p)
+    }
+}
+
 //#[derive(Debug)]
 enum PinValue {
     None,
@@ -61,6 +73,7 @@ enum NodeType {
     String(String),
     Color(Color32),
     Pixmap(PathBuf),
+    TransformColorField,
     Revolution,
     Rotate,
     Hex,
@@ -77,6 +90,12 @@ impl NodeType {
                 value.r(), value.g(), value.b(), value.a())
             ),
             NodeType::Pixmap(path) => PinValue::Pixmap(Pixmap::load_png(path.as_path()).unwrap()),
+            NodeType::TransformColorField => {
+                let mut pins = pin_values.into_iter();
+                let color = pins.next().unwrap_or(PinValue::None).as_color_field().unwrap_or(Box::new(ConstantField::new(Color::TRANSPARENT)));
+                let transform = pins.next().unwrap_or(PinValue::None).transform().unwrap_or(Transform::identity());
+                PinValue::ColorField(Box::new(TransformedColorField { field: color, transform }))
+            }
             NodeType::Revolution => {
                 let value = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
                 PinValue::Float(TAU * value)
@@ -109,6 +128,7 @@ impl NodeWidget for NodeType {
         match self {
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
+            NodeType::TransformColorField => [Pin::new(), Pin::new()].into(),
             NodeType::Hex => [Pin::new(), Pin::new(), Pin::new(), Pin::new()].into(),
             NodeType::Output => [Pin::new()].into(),
             _ => Vec::new(),
@@ -121,6 +141,7 @@ impl NodeWidget for NodeType {
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
             NodeType::Pixmap(_) => [Pin::new()].into(),
+            NodeType::TransformColorField => [Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Hex => [Pin::new()].into(),
@@ -134,6 +155,7 @@ impl NodeWidget for NodeType {
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
             NodeType::Pixmap(_) => "pixmap",
+            NodeType::TransformColorField => "transform color field",
             NodeType::Revolution => "revolution",
             NodeType::Rotate => "rotate",
             NodeType::Hex => "hex",
@@ -199,6 +221,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
         NodeType::Pixmap(path) => json::object!{"type": "pixmap", path: path.to_str()},
+        NodeType::TransformColorField => json::object!{"type": "transform-color-field" },
         NodeType::Revolution => json::object!{"type": "revolution"},
         NodeType::Rotate => json::object!{"type": "rotate"},
         NodeType::Hex => json::object!{"type": "hex"},
@@ -486,6 +509,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("pixmap").clicked() {
                     self.add_node(NodeType::Pixmap(PathBuf::new()));
+                }
+                if ui.button("transform color field").clicked() {
+                    self.add_node(NodeType::TransformColorField);
                 }
             });
     
