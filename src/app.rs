@@ -24,6 +24,7 @@ enum PinValue {
     Color(Color),
     Transform(Transform),
     Pixmap(Pixmap),
+    ColorField(Box<dyn Field2<Color>>),
 }
 impl PinValue {
     fn pixmap(self) -> Pixmap {
@@ -37,6 +38,7 @@ impl PinValue {
     fn as_color_field(self) -> Option<Box<dyn Field2<Color>>> {
         match self {
             PinValue::Color(color) => Some(Box::new(ConstantField::new(color))),
+            PinValue::ColorField(field) => Some(field),
             PinValue::Pixmap(pixmap) => Some(Box::new(pixmap)),
             _ => None,
         }
