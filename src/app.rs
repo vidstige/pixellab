@@ -280,7 +280,7 @@ impl PixelLab {
 
         // add some stuff on the timeline
         app.timeline.blocks.push((Duration::from_secs(3.0), ()));
-        //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
+        app.timeline.blocks.push((Duration::from_secs(3.0), ()));
         //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
 
         app
@@ -350,8 +350,15 @@ impl<T> Widget for &mut Timeline<T> {
         ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
             self.show_ticks(ui);
             ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                ui.label("block1");
-                ui.label("block2");
+                let height = 50.0;
+                let total_width = ui.available_width();
+                let total_duration = self.duration();
+                for (duration, _) in &self.blocks {
+                    let width = total_width * duration.as_millis() as f32 / total_duration.as_millis() as f32;
+                    ui.group(|ui| {
+                        ui.allocate_exact_size(Vec2::new(width, height), Sense::empty());
+                    });
+                }
             });
         }).response
     }
