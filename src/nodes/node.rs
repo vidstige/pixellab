@@ -114,7 +114,8 @@ impl<W: NodeWidget> Graph<W> {
         let mut closed_indices = Vec::new();
         for (node_index, node) in self.nodes.iter_mut().enumerate() {
             let frame = egui::Frame::group(ui.style()).fill(ui.style().visuals.panel_fill);
-            let window = egui::Window::new(node.title())
+            let title = egui::RichText::from(node.title()).size(12.);
+            let window = egui::Window::new(title)
                 .id(Id::new(node_index))
                 .frame(frame)
                 .resizable(false);
