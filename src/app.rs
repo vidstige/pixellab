@@ -174,7 +174,7 @@ impl NodeWidget for NodeType {
     }
     fn ui(&mut self, ui: &mut egui::Ui) -> egui::Response {
         match self {
-            NodeType::Float(value) => ui.add(egui::Slider::new(value, 2.0..=16.0)),
+            NodeType::Float(value) => ui.add(egui::Slider::new(value, 0.0..=256.0).logarithmic(true)),
             NodeType::Color(value) => {
                 egui::color_picker::color_picker_color32(ui, value, egui::color_picker::Alpha::Opaque);
                 ui.response()
