@@ -298,7 +298,7 @@ fn save_timeline(timeline: &Timeline<Graph<NodeType>>) -> Result<json::JsonValue
 
 fn load_timeline(raw: &str) -> Result<Timeline<Graph<NodeType>>, json::Error> {
     let root = json::parse(raw)?;
-    let mut timeline = Timeline::new(3.0);
+    let mut timeline = Timeline::new(30.0);
     for block in root.members() {
         let duration = Duration::from_millis(block["duration"].as_u32().unwrap_or(3000));
         let graph = load_graph(&block["graph"])?;
@@ -322,6 +322,7 @@ pub struct PixelLab {
     video_settings: VideoSettings,
     output_texture: TextureHandle,
     timeline: Timeline<Graph<NodeType>>,
+    play: bool,
 }
 
 impl PixelLab {
@@ -352,6 +353,7 @@ impl PixelLab {
             video_settings: VideoSettings { resolution, },
             output_texture,
             timeline,
+            play: false,
         };
 
         // add some stuff on the timeline, if empty
@@ -408,13 +410,15 @@ impl<T> Timeline<T> {
         }
         None
     }
+    fn cap_caret(&mut self) {
+        if self.caret.millis > self.duration().millis {
+            self.caret = Instant::zero().after(&Duration::from_millis(self.duration().millis - 1));
+        }
+    }
     fn delete_selected(&mut self) {
         if let Some(index) = self.selected_index() {
             self.blocks.remove(index);
-            // update caret
-            if self.caret.millis > self.duration().millis {
-                self.caret = Instant::zero().after(&Duration::from_millis(self.duration().millis - 1));
-            }
+            self.cap_caret();
         }
     }
     fn selected_mut(&mut self) -> Option<&mut (Duration, T)> {
@@ -516,6 +520,13 @@ impl eframe::App for PixelLab {
             });
         });
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.toggle_value(&mut self.play, "play");
+            if self.play {
+                // simple play
+                self.timeline.caret.millis += 1000 / self.timeline.fps as u32;
+                self.timeline.cap_caret();
+                ctx.request_repaint_after_secs(1.0 / self.timeline.fps);
+            }
             ui.add(&mut self.timeline);
             egui::warn_if_debug_build(ui);
         });
