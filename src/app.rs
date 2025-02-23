@@ -4,7 +4,7 @@ use egui::{Color32, ColorImage, ImageData, Response, Sense, Stroke, TextureHandl
 use json::JsonValue;
 use tiny_skia::{Color, Pixmap, PremultipliedColorU8, Transform};
 
-use crate::{fields::{ConstantField, Field2}, hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}};
+use crate::{fields::{ConstantField, Field2}, hex::{draw_hex_grid, HexGrid}, nodes::node::{Graph, NodeWidget, Pin, PinDirection, PinId}, time::{Duration, Instant}, tweening};
 
 impl Field2<Color> for Pixmap {
     fn at(&self, position: tiny_skia::Point) -> Color {
@@ -78,13 +78,18 @@ impl PinValue {
 
 #[derive(Clone, Debug)]
 enum NodeType {
+    // data types
     Time,
     Float(f32),
     String(String),
     Color(Color32),
+    // tweens
     Lerp,
+    Cubic(bool),
+    // color fields
     Pixmap(PathBuf),
     TransformColorField,
+    // transforms
     Revolution,
     Rotate,
     Scale,
@@ -108,6 +113,10 @@ impl NodeType {
                 let b = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(1.0);
                 let t = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
                 PinValue::Float(Lerp {a, b}.eval(t))
+            },
+            NodeType::Cubic(bool) => {
+                let value = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
+                PinValue::Float(tweening::cubic_in(value))
             },
             NodeType::Pixmap(path) => PinValue::Pixmap(Pixmap::load_png(path.as_path()).unwrap()),
             NodeType::TransformColorField => {
@@ -150,6 +159,7 @@ impl NodeWidget for NodeType {
     fn in_pins(&self) -> Vec<Pin> {
         match self {
             NodeType::Lerp => [Pin::new(), Pin::new(), Pin::new()].into(),
+            NodeType::Cubic(_) => [Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
             NodeType::Scale => [Pin::new(), Pin::new()].into(),
@@ -166,6 +176,7 @@ impl NodeWidget for NodeType {
             NodeType::String(_) => [Pin::new()].into(),
             NodeType::Color(_) => [Pin::new()].into(),
             NodeType::Lerp => [Pin::new()].into(),
+            NodeType::Cubic(_) => [Pin::new()].into(),
             NodeType::Pixmap(_) => [Pin::new()].into(),
             NodeType::TransformColorField => [Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
@@ -182,6 +193,7 @@ impl NodeWidget for NodeType {
             NodeType::String(_) => "text",
             NodeType::Color(_) => "color",
             NodeType::Lerp => "lerp",
+            NodeType::Cubic(_) => "cubic",
             NodeType::Pixmap(_) => "pixmap",
             NodeType::TransformColorField => "transform color field",
             NodeType::Revolution => "revolution",
@@ -217,6 +229,7 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
         "lerp" => Some(NodeType::Lerp),
+        "cubic" =>  raw["in"].as_bool().map(|value| NodeType::Cubic(value.into())),
         "pixmap" => raw["path"].as_str().map(|value| NodeType::Pixmap(value.into())),
         "transform-color-field" => Some(NodeType::TransformColorField),
         "revolution" => Some(NodeType::Revolution),
@@ -255,6 +268,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::String(value) => json::object!{"type": "string", value: value},
         NodeType::Color(value) => json::object!{"type": "color", value: value.to_hex()},
         NodeType::Lerp => json::object!{"type": "lerp"},
+        NodeType::Cubic(is_in) => json::object!{"type": "cubic", "in": is_in},
         NodeType::Pixmap(path) => json::object!{"type": "pixmap", path: path.to_str()},
         NodeType::TransformColorField => json::object!{"type": "transform-color-field" },
         NodeType::Revolution => json::object!{"type": "revolution"},
@@ -544,6 +558,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("lerp").clicked() {
                     self.add_node(NodeType::Lerp);
+                }
+                if ui.button("cubic").clicked() {
+                    self.add_node(NodeType::Cubic(true));
                 }
                 if ui.button("rotate").clicked() {
                     self.add_node(NodeType::Rotate);

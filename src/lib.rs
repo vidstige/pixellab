@@ -4,6 +4,7 @@ mod app;
 pub use app::PixelLab;
 
 mod fields;
+mod tweening;
 
 mod hex;
 
