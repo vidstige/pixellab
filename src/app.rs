@@ -195,8 +195,7 @@ fn into_link(raw: &json::JsonValue) -> Option<(PinId, PinId)> {
 }
 
 // graph io
-fn load_graph(raw: &str) -> Result<Graph<NodeType>, json::Error> {
-    let root = json::parse(raw)?;
+fn load_graph(root: &json::JsonValue) -> Result<Graph<NodeType>, json::Error> {
     let nodes = root["nodes"].members().filter_map(|raw| into_node(&raw)).collect();
     let links = root["links"].members().filter_map(|raw| into_link(raw)).collect();
     Ok(Graph { nodes, links})
@@ -217,7 +216,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
     }
 }
 
-fn save_graph(graph: &Graph<NodeType>) -> Result<String, json::JsonError> {
+fn save_graph(graph: &Graph<NodeType>) -> Result<json::JsonValue, json::JsonError> {
     let mut root = json::JsonValue::new_object();
     root["nodes"] = JsonValue::new_array();
     for node in &graph.nodes {
@@ -233,7 +232,31 @@ fn save_graph(graph: &Graph<NodeType>) -> Result<String, json::JsonError> {
             }
         )?;
     }
-    Ok(root.dump())
+    Ok(root)
+}
+
+fn save_timeline(timeline: &Timeline<Graph<NodeType>>) -> Result<json::JsonValue, json::JsonError> {
+    let mut root = json::JsonValue::new_array();
+    for (duration, graph) in &timeline.blocks {
+        let graph_json = save_graph(graph)?;
+        root.push(json::object!{
+            duration: duration.as_millis(),
+            graph: graph_json,
+        })?;
+    }
+    Ok(root)
+}
+
+fn load_timeline(raw: &str) -> Result<Timeline<Graph<NodeType>>, json::Error> {
+    let root = json::parse(raw)?;
+    let mut timeline = Timeline::new(3.0);
+    for block in root.members() {
+        let duration = Duration::from_millis(block["duration"].as_u32().unwrap_or(3000));
+        let graph = load_graph(&block["graph"])?;
+        timeline.blocks.push((duration, graph));
+
+    }
+    Ok(timeline)
 }
 
 struct VideoSettings {
@@ -243,8 +266,7 @@ struct VideoSettings {
 pub struct PixelLab {
     video_settings: VideoSettings,
     output_texture: TextureHandle,
-    timeline: Timeline<()>,
-    graph: Graph<NodeType>,
+    timeline: Timeline<Graph<NodeType>>,
 }
 
 impl PixelLab {
@@ -253,18 +275,18 @@ impl PixelLab {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        let mut graph = Graph::new();
+        let fps = 30.0;
+        let mut timeline = Timeline::new(fps);
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         if let Some(storage) = cc.storage {
             //return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-            if let Some(raw) = storage.get_string("graph_json") {
+            if let Some(raw) = storage.get_string("timeline_json") {
                 println!("{}", raw);
-                graph = load_graph(&raw).unwrap();
+                timeline = load_timeline(&raw).unwrap();
             }
         }
 
-        let fps = 30.0;
         let resolution = [320, 200];
         let output_texture = cc.egui_ctx.load_texture(
             "output",
@@ -274,19 +296,24 @@ impl PixelLab {
         let mut app = PixelLab {
             video_settings: VideoSettings { resolution, },
             output_texture,
-            timeline: Timeline::new(fps),
-            graph,
+            timeline,
         };
 
-        // add some stuff on the timeline
-        app.timeline.blocks.push((Duration::from_secs(3.0), ()));
-        app.timeline.blocks.push((Duration::from_secs(3.0), ()));
-        //app.timeline.blocks.push(Duration::from_secs_f32(3.0));
+        // add some stuff on the timeline, if empty
+        if app.timeline.blocks.is_empty() {
+            let mut graph = Graph::new();
+            graph.nodes.push(NodeType::Output);
+            app.timeline.blocks.push((Duration::from_secs(3.0), graph));
+        }
 
         app
     }
+    fn graph(&mut self) -> &mut Graph<NodeType> {
+        let index = self.timeline.selected_index().unwrap();
+        &mut self.timeline.blocks[index].1
+    }
     fn add_node(&mut self, node: NodeType) {
-        self.graph.nodes.push(node);
+        self.graph().nodes.push(node);
     }
 }
 
@@ -317,16 +344,24 @@ impl<T> Timeline<T> {
     fn duration(&self) -> Duration {
         self.blocks.iter().map(|(duration, _)| duration).sum()
     }
-    fn selected_mut(&mut self) -> Option<(&mut Duration, &mut T)> {
+    fn selected_index(&self) -> Option<usize> {
         let mut start = Instant::zero();
-        for (duration, value) in &mut self.blocks {
+        for (index, (duration, _)) in &mut self.blocks.iter().enumerate() {
             let end = start.after(duration);
             if self.caret.millis < end.millis {
-                return Some((duration, value));
+                return Some(index);
             }
             start = end;
         }
         None
+    }
+    fn delete_selected(&mut self) {
+        if let Some(index) = self.selected_index() {
+            self.blocks.remove(index);
+        }
+    }
+    fn selected_mut(&mut self) -> Option<&mut (Duration, T)> {
+        self.selected_index().map(|index| &mut self.blocks[index])
     }
     fn show_ticks(&mut self, ui: &mut Ui) -> Response {
         let desired_size = Vec2::new(ui.available_width(), 25.0);
@@ -356,9 +391,17 @@ impl<T> Timeline<T> {
     }
 }
 
-impl<T> Widget for &mut Timeline<T> {
+impl<W: NodeWidget> Widget for &mut Timeline<Graph<W>> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+            // can't delete the last block
+            if self.blocks.len() > 1 && ui.button("delete").clicked() {
+                self.delete_selected();
+            }
+            if ui.button("add").clicked() {
+                let duration = Duration::from_secs(3.0);
+                self.blocks.push((duration, Graph::new()));
+            }
             if let Some((duration, _)) = self.selected_mut() {
                 ui.add(egui::Slider::new(&mut duration.millis, 1..=5000));
             }
@@ -385,10 +428,11 @@ impl<T> Widget for &mut Timeline<T> {
 impl eframe::App for PixelLab {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        if let Ok(raw) = save_graph(&self.graph) {
-            storage.set_string("graph_json", raw);
+        if let Ok(raw) = save_timeline(&self.timeline) {
+            storage.set_string("timeline_json", raw.dump());
+            //storage.set_string("graph_json", raw);
         } else {
-            println!("could not save graph");
+            println!("could not save timeline");
         }
         //storage.set_string(eframe::APP_KEY, value);
     }
@@ -422,7 +466,7 @@ impl eframe::App for PixelLab {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Pixel Labs");
             // node editor
-            let response = self.graph.show(ctx, ui);
+            let response = self.graph().show(ctx, ui);
             response.context_menu(|ui| {
                 if ui.button("float").clicked() {
                     self.add_node(NodeType::Float(1.0));
@@ -455,7 +499,7 @@ impl eframe::App for PixelLab {
             // evaluate pixmap
             // compute global time
             let t = self.timeline.caret.millis as f32 / self.timeline.duration().as_millis() as f32;
-            if let PinValue::Pixmap(pixmap) = resolve(&self.graph, 0, 0, t) {
+            if let PinValue::Pixmap(pixmap) = resolve(&self.graph(), 0, 0, t) {
                 self.output_texture.set(
                     ColorImage::from_rgba_premultiplied(
                         [pixmap.width() as usize, pixmap.height() as usize],
