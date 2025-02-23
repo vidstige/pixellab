@@ -464,6 +464,24 @@ impl<T> Timeline<T> {
 
         response
     }
+    
+    // return global time as 0-1
+    fn global_time(&self) -> f32 {
+        self.caret.millis as f32 / self.duration().as_millis() as f32
+    }
+
+    // returns the time in the block as 0-1
+    fn local_time(&self) -> f32 {
+        let mut start = Instant::zero();
+        for (duration, _) in &self.blocks {
+            let end = start.after(duration);
+            if self.caret.millis < end.millis {
+                return (self.caret.millis - start.millis) as f32 / duration.millis as f32;
+            }
+            start = end;
+        }
+        0.0
+    }
 }
 
 impl Widget for &mut Timeline<Graph<NodeType>> {
@@ -589,8 +607,10 @@ impl eframe::App for PixelLab {
             // output window
             // evaluate pixmap
             // compute global time
-            let t = self.timeline.caret.millis as f32 / self.timeline.duration().as_millis() as f32;
-            if let PinValue::Pixmap(pixmap) = resolve(&self.graph(), 0, 0, t) {
+            let t = self.timeline.global_time();
+            // compute local time
+            let local_t = self.timeline.local_time();
+            if let PinValue::Pixmap(pixmap) = resolve(&self.graph(), 0, 0, local_t) {
                 self.output_texture.set(
                     ColorImage::from_rgba_premultiplied(
                         [pixmap.width() as usize, pixmap.height() as usize],
