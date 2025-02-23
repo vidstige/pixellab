@@ -1,6 +1,6 @@
 use std::{f32::consts::TAU, path::PathBuf, sync::Arc};
 
-use egui::{Color32, ColorImage, ImageData, Layout, Response, Sense, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget};
+use egui::{Color32, ColorImage, ImageData, Response, Sense, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget};
 use json::JsonValue;
 use tiny_skia::{Color, Pixmap, PremultipliedColorU8, Transform};
 
@@ -76,6 +76,7 @@ enum NodeType {
     TransformColorField,
     Revolution,
     Rotate,
+    Scale,
     Hex,
     Output,
 }
@@ -104,6 +105,12 @@ impl NodeType {
                 let angle = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
                 PinValue::Transform(Transform::post_rotate(&Transform::identity(), angle.to_degrees()))
             },
+            NodeType::Scale => {
+                let mut pins = pin_values.into_iter();
+                let sx = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(1.0);
+                let sy = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(sx);
+                PinValue::Transform(Transform::post_scale(&Transform::identity(), sx, sy))
+            },
             NodeType::Hex => {
                 // extract inputs
                 let mut pins = pin_values.into_iter();
@@ -128,6 +135,7 @@ impl NodeWidget for NodeType {
         match self {
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
+            NodeType::Scale => [Pin::new(), Pin::new()].into(),
             NodeType::TransformColorField => [Pin::new(), Pin::new()].into(),
             NodeType::Hex => [Pin::new(), Pin::new(), Pin::new(), Pin::new()].into(),
             NodeType::Output => [Pin::new()].into(),
@@ -144,6 +152,7 @@ impl NodeWidget for NodeType {
             NodeType::TransformColorField => [Pin::new()].into(),
             NodeType::Revolution => [Pin::new()].into(),
             NodeType::Rotate => [Pin::new()].into(),
+            NodeType::Scale => [Pin::new()].into(),
             NodeType::Hex => [Pin::new()].into(),
             NodeType::Output => Vec::new(),
         }
@@ -158,6 +167,7 @@ impl NodeWidget for NodeType {
             NodeType::TransformColorField => "transform color field",
             NodeType::Revolution => "revolution",
             NodeType::Rotate => "rotate",
+            NodeType::Scale => "scale",
             NodeType::Hex => "hex",
             NodeType::Output => "output",
         }.into()
@@ -188,8 +198,10 @@ fn into_node(raw: &json::JsonValue) -> Option<NodeType> {
         "string" => raw["value"].as_str().map(|value| NodeType::String(value.to_string())),
         "color" => raw["value"].as_str().map(|value| Color32::from_hex(value).ok().map(|value| NodeType::Color(value)))?,
         "pixmap" => raw["path"].as_str().map(|value| NodeType::Pixmap(value.into())),
+        "transform-color-field" => Some(NodeType::TransformColorField),
         "revolution" => Some(NodeType::Revolution),
         "rotate" => Some(NodeType::Rotate),
+        "scale" => Some(NodeType::Scale),
         "hex" => Some(NodeType::Hex),
         "output" => Some(NodeType::Output),
         _ => None
@@ -209,9 +221,11 @@ fn into_link(raw: &json::JsonValue) -> Option<(PinId, PinId)> {
 
 // graph io
 fn load_graph(root: &json::JsonValue) -> Result<Graph<NodeType>, json::Error> {
-    let nodes = root["nodes"].members().filter_map(|raw| into_node(&raw)).collect();
-    let links = root["links"].members().filter_map(|raw| into_link(raw)).collect();
-    Ok(Graph { nodes, links})
+    let nodes: Vec<NodeType> = root["nodes"].members().filter_map(|raw| into_node(&raw)).collect();
+    let mut links: Vec<(PinId, PinId)> = root["links"].members().filter_map(|raw| into_link(raw)).collect();
+    // drop bad links
+    links.retain(|(from, to)| from.node_index < nodes.len() && to.node_index < nodes.len());
+    Ok(Graph { nodes, links })
 }
 
 fn from_nodetype(node_type: NodeType) -> json::JsonValue {
@@ -224,6 +238,7 @@ fn from_nodetype(node_type: NodeType) -> json::JsonValue {
         NodeType::TransformColorField => json::object!{"type": "transform-color-field" },
         NodeType::Revolution => json::object!{"type": "revolution"},
         NodeType::Rotate => json::object!{"type": "rotate"},
+        NodeType::Scale => json::object!{"type": "scale"},
         NodeType::Hex => json::object!{"type": "hex"},
         NodeType::Output => json::object!{"type": "output"},
     }
@@ -497,6 +512,9 @@ impl eframe::App for PixelLab {
                 }
                 if ui.button("rotate").clicked() {
                     self.add_node(NodeType::Rotate);
+                }
+                if ui.button("scale").clicked() {
+                    self.add_node(NodeType::Scale);
                 }
                 if ui.button("revolution").clicked() {
                     self.add_node(NodeType::Revolution);
