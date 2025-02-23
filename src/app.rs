@@ -83,6 +83,7 @@ enum NodeType {
 
 impl NodeType {
     fn evaluate(&self, pin_values: Vec<PinValue>, pin_index: usize, t: f32) -> PinValue {
+        let mut pins = pin_values.into_iter();
         match self {
             NodeType::Time => PinValue::Float(t),
             NodeType::Float(value) => PinValue::Float(*value),
@@ -92,28 +93,25 @@ impl NodeType {
             ),
             NodeType::Pixmap(path) => PinValue::Pixmap(Pixmap::load_png(path.as_path()).unwrap()),
             NodeType::TransformColorField => {
-                let mut pins = pin_values.into_iter();
                 let color = pins.next().unwrap_or(PinValue::None).as_color_field().unwrap_or(Box::new(ConstantField::new(Color::TRANSPARENT)));
                 let transform = pins.next().unwrap_or(PinValue::None).transform().unwrap_or(Transform::identity());
                 PinValue::ColorField(Box::new(TransformedColorField { field: color, transform }))
             }
             NodeType::Revolution => {
-                let value = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
+                let value = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
                 PinValue::Float(TAU * value)
             }
             NodeType::Rotate => {
-                let angle = pin_values.into_iter().next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
+                let angle = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(0.0);
                 PinValue::Transform(Transform::post_rotate(&Transform::identity(), angle.to_degrees()))
             },
             NodeType::Scale => {
-                let mut pins = pin_values.into_iter();
                 let sx = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(1.0);
                 let sy = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(sx);
                 PinValue::Transform(Transform::post_scale(&Transform::identity(), sx, sy))
             },
             NodeType::Hex => {
                 // extract inputs
-                let mut pins = pin_values.into_iter();
                 let color = pins.next().unwrap_or(PinValue::None).as_color_field().unwrap_or(Box::new(ConstantField::new(Color::TRANSPARENT)));
                 let spacing = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(8.0);
                 let size = pins.next().unwrap_or(PinValue::None).f32().unwrap_or(8.0);
@@ -125,7 +123,7 @@ impl NodeType {
                 draw_hex_grid(&mut pixmap, &grid, color.as_ref());
                 PinValue::Pixmap(pixmap)
             },
-            NodeType::Output => pin_values.into_iter().next().unwrap_or(PinValue::None),
+            NodeType::Output => pins.next().unwrap_or(PinValue::None),
         }
     }
 }
