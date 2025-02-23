@@ -120,7 +120,7 @@ impl<W: NodeWidget> Graph<W> {
                 .resizable(false);
             let mut is_open = true;
             let maybe_response = window.open(&mut is_open).show(ctx, |ui| {
-                ui.set_min_size(Vec2::new(48.0, 64.0));
+                ui.set_min_size(Vec2::new(32.0, 32.0));
                 node.ui(ui);
             });
             if is_open {
