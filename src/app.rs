@@ -259,6 +259,12 @@ fn load_timeline(raw: &str) -> Result<Timeline<Graph<NodeType>>, json::Error> {
     Ok(timeline)
 }
 
+fn create_graph() -> Graph<NodeType> {
+    let mut graph = Graph::new();
+    graph.nodes.push(NodeType::Output);
+    graph
+}
+
 struct VideoSettings {
     resolution: [usize; 2],
 }
@@ -301,9 +307,7 @@ impl PixelLab {
 
         // add some stuff on the timeline, if empty
         if app.timeline.blocks.is_empty() {
-            let mut graph = Graph::new();
-            graph.nodes.push(NodeType::Output);
-            app.timeline.blocks.push((Duration::from_secs(3.0), graph));
+            app.timeline.blocks.push((Duration::from_secs(3.0), create_graph()));
         }
 
         app
@@ -358,6 +362,10 @@ impl<T> Timeline<T> {
     fn delete_selected(&mut self) {
         if let Some(index) = self.selected_index() {
             self.blocks.remove(index);
+            // update caret
+            if self.caret.millis > self.duration().millis {
+                self.caret = Instant::zero().after(&Duration::from_millis(self.duration().millis - 1));
+            }
         }
     }
     fn selected_mut(&mut self) -> Option<&mut (Duration, T)> {
@@ -391,7 +399,7 @@ impl<T> Timeline<T> {
     }
 }
 
-impl<W: NodeWidget> Widget for &mut Timeline<Graph<W>> {
+impl Widget for &mut Timeline<Graph<NodeType>> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
             // can't delete the last block
@@ -400,7 +408,7 @@ impl<W: NodeWidget> Widget for &mut Timeline<Graph<W>> {
             }
             if ui.button("add").clicked() {
                 let duration = Duration::from_secs(3.0);
-                self.blocks.push((duration, Graph::new()));
+                self.blocks.push((duration, create_graph()));
             }
             if let Some((duration, _)) = self.selected_mut() {
                 ui.add(egui::Slider::new(&mut duration.millis, 1..=5000));
